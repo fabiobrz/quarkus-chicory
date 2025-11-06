@@ -15,6 +15,11 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>io.quarkiverse</groupId>
+                <artifactId>quarkus-chicory</artifactId>
+                <version>${project.version}</version>
+            </dependency>
             <!--
             REQ. 2
             quarkus-chicory-bom excludes chicory ASM dependencies
@@ -23,42 +28,6 @@
             Having the Quarkus-aligned ASM dependencies in is required when using chicory
             runtime compilation.
             -->
-<!--            <dependency>-->
-<!--                <groupId>com.dylibso.chicory</groupId>-->
-<!--                <artifactId>compiler</artifactId>-->
-<!--                <version>${dylibso.version}</version>-->
-<!--                <exclusions>-->
-<!--                    <exclusion>-->
-<!--                        <groupId>org.ow2.asm</groupId>-->
-<!--                        <artifactId>asm-analysis</artifactId>-->
-<!--                    </exclusion>-->
-<!--                    <exclusion>-->
-<!--                        <groupId>org.ow2.asm</groupId>-->
-<!--                        <artifactId>asm-commons</artifactId>-->
-<!--                    </exclusion>-->
-<!--                    <exclusion>-->
-<!--                        <groupId>org.ow2.asm</groupId>-->
-<!--                        <artifactId>asm-tree</artifactId>-->
-<!--                    </exclusion>-->
-<!--                    <exclusion>-->
-<!--                        <groupId>org.ow2.asm</groupId>-->
-<!--                        <artifactId>asm-util</artifactId>-->
-<!--                    </exclusion>-->
-<!--                    <exclusion>-->
-<!--                        <groupId>org.ow2.asm</groupId>-->
-<!--                        <artifactId>asm</artifactId>-->
-<!--                    </exclusion>-->
-<!--                    <exclusion>-->
-<!--                        <groupId>org.ow2.asm</groupId>-->
-<!--                        <artifactId>asm</artifactId>-->
-<!--                    </exclusion>-->
-<!--                </exclusions>-->
-<!--            </dependency>-->
-            <dependency>
-                <groupId>io.quarkiverse</groupId>
-                <artifactId>quarkus-chicory</artifactId>
-                <version>${project.version}</version>
-            </dependency>
             <dependency>
                 <groupId>com.dylibso.chicory</groupId>
                 <artifactId>bom</artifactId>
