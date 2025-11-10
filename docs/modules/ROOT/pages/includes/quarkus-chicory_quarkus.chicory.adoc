@@ -1,0 +1,74 @@
+[.configuration-legend]
+icon:lock[title=Fixed at build time] Configuration property fixed at build time - All other configuration properties are overridable at runtime
+[.configuration-reference.searchable, cols="80,.^10,.^10"]
+|===
+
+h|[.header-title]##Configuration property##
+h|Type
+h|Default
+
+a| [[quarkus-chicory_quarkus-chicory-module-path]] [.property-path]##link:#quarkus-chicory_quarkus-chicory-module-path[`quarkus.chicory.module-path`]##
+ifdef::add-copy-button-to-config-props[]
+config_property_copy_button:+++quarkus.chicory.module-path+++[]
+endif::add-copy-button-to-config-props[]
+
+
+[.description]
+--
+The WASM module path.
+
+
+ifdef::add-copy-button-to-env-var[]
+Environment variable: env_var_with_copy_button:+++QUARKUS_CHICORY_MODULE_PATH+++[]
+endif::add-copy-button-to-env-var[]
+ifndef::add-copy-button-to-env-var[]
+Environment variable: `+++QUARKUS_CHICORY_MODULE_PATH+++`
+endif::add-copy-button-to-env-var[]
+--
+|link:https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/File.html[File]
+|`+++./src/main/resources/photon_example.wasm+++`
+
+a| [[quarkus-chicory_quarkus-chicory-machine-factory-class-name]] [.property-path]##link:#quarkus-chicory_quarkus-chicory-machine-factory-class-name[`quarkus.chicory.machine-factory-class-name`]##
+ifdef::add-copy-button-to-config-props[]
+config_property_copy_button:+++quarkus.chicory.machine-factory-class-name+++[]
+endif::add-copy-button-to-config-props[]
+
+
+[.description]
+--
+The FullyQualifiedDomain name of the class that should be used to set `com.dylibso.chicory.runtime.Instance.Builder++#++withMachineFactory(Function)`
+
+
+ifdef::add-copy-button-to-env-var[]
+Environment variable: env_var_with_copy_button:+++QUARKUS_CHICORY_MACHINE_FACTORY_CLASS_NAME+++[]
+endif::add-copy-button-to-env-var[]
+ifndef::add-copy-button-to-env-var[]
+Environment variable: `+++QUARKUS_CHICORY_MACHINE_FACTORY_CLASS_NAME+++`
+endif::add-copy-button-to-env-var[]
+--
+|string
+|`+++org.acme.Photon+++`
+
+a| [[quarkus-chicory_quarkus-chicory-machine-factory-method-name]] [.property-path]##link:#quarkus-chicory_quarkus-chicory-machine-factory-method-name[`quarkus.chicory.machine-factory-method-name`]##
+ifdef::add-copy-button-to-config-props[]
+config_property_copy_button:+++quarkus.chicory.machine-factory-method-name+++[]
+endif::add-copy-button-to-config-props[]
+
+
+[.description]
+--
+The name of the method that should be used to set `com.dylibso.chicory.runtime.Instance.Builder++#++withMachineFactory(Function)`
+
+
+ifdef::add-copy-button-to-env-var[]
+Environment variable: env_var_with_copy_button:+++QUARKUS_CHICORY_MACHINE_FACTORY_METHOD_NAME+++[]
+endif::add-copy-button-to-env-var[]
+ifndef::add-copy-button-to-env-var[]
+Environment variable: `+++QUARKUS_CHICORY_MACHINE_FACTORY_METHOD_NAME+++`
+endif::add-copy-button-to-env-var[]
+--
+|string
+|`+++create+++`
+
+|===
+
