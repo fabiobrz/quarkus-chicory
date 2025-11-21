@@ -4,9 +4,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
-
 import com.dylibso.chicory.wasm.Parser;
 
 import io.quarkus.logging.Log;
@@ -14,9 +11,9 @@ import io.quarkus.logging.Log;
 /**
  * A registry that holds managed Wasm modules at runtime.
  */
-@ApplicationScoped
 public class WasmModuleContextRegistry {
 
+    static final String FACTORY_METHOD_NAME_CREATE = "create";
     private final Map<String, WasmModuleContext> registry;
 
     /**
@@ -24,44 +21,41 @@ public class WasmModuleContextRegistry {
      *
      * @param config The managed Wasm modules runtime configuration
      */
-    @Inject
-    public WasmModuleContextRegistry(WasmModulesConfig config) {
-        // Initialize the internal registry map during application startup
+    public WasmModuleContextRegistry(ChicoryConfig config) {
+        // Initialize the internal registry map
         this.registry = config.modules().stream()
-                .map(this::createWasmModuleContext)
-                .collect(Collectors.toMap(WasmModuleContext::getId, module -> module));
-        logRegisteredWasmModuleContexts();
+                .map(this::createContext)
+                .collect(Collectors.toMap(WasmModuleContext::getName, module -> module));
+        logAll();
     }
 
-    private WasmModuleContext createWasmModuleContext(WasmModulesConfig.ModuleConfig config) {
-        final String factoryClassName = config.factoryClassName().isPresent() ? config.factoryClassName().get() : null;
-        final String factoryMethodName = config.factoryMethodName().isPresent() ? config.factoryMethodName().get() : null;
-        return WasmModuleContext.builder(config.id(), Parser.parse(config.staticFilePath()))
+    private WasmModuleContext createContext(ChicoryConfig.ModuleConfig config) {
+        final String factoryClassName = config.name();
+        return WasmModuleContext.builder(config.name(), Parser.parse(config.wasmFile()))
                 .withFactoryClassName(factoryClassName)
-                .withFactoryMethodName(factoryMethodName).build();
+                .withFactoryMethodName(FACTORY_METHOD_NAME_CREATE).build();
     }
 
-    public WasmModuleContext getModuleContextById(String id) {
-        return registry.get(id);
+    public WasmModuleContext get(String name) {
+        return registry.get(name);
     }
 
-    public Map<String, WasmModuleContext> getAllModuleContexts() {
+    public Map<String, WasmModuleContext> all() {
         return Collections.unmodifiableMap(registry);
     }
 
-    public void addWasmModuleContext(WasmModuleContext wasmModule) {
-        if (registry.containsKey(wasmModule.getId())) {
-            Log.info("Wasm module context " + wasmModule.getId() + " is already registered, and will be replaced");
+    public void add(WasmModuleContext wasmModule) {
+        if (registry.containsKey(wasmModule.getName())) {
+            Log.info("Wasm module context " + wasmModule.getName() + " is already registered, and will be replaced");
         } else {
-            Log.info("A new Wasm module context " + wasmModule.getId() + " will be registered");
+            Log.info("A new Wasm module context " + wasmModule.getName() + " will be registered");
         }
-
-        registry.put(wasmModule.getId(), wasmModule);
-        logRegisteredWasmModuleContexts();
+        registry.put(wasmModule.getName(), wasmModule);
+        logAll();
     }
 
-    public void logRegisteredWasmModuleContexts() {
-        Log.info("Loaded Wasm module contexts:\n\n" + getAllModuleContexts().entrySet().stream()
+    public void logAll() {
+        Log.info("Loaded Wasm module contexts:\n\n" + all().entrySet().stream()
                 .map(e -> " - " + e.getKey() + ": " + e.getValue())
                 .collect(Collectors.joining("\n")));
     }

@@ -14,7 +14,7 @@ import io.quarkus.runtime.util.StringUtil;
  * applications.
  */
 public class WasmModuleContext {
-    private final String id;
+    private final String name;
     private final WasmModule wasmModule;
 
     private final String factoryClassName;
@@ -22,17 +22,17 @@ public class WasmModuleContext {
 
     private Instance instance;
 
-    WasmModuleContext(final String id, final WasmModule wasmModule, final String factoryClassName,
+    WasmModuleContext(final String name, final WasmModule wasmModule, final String factoryClassName,
             final String factoryMethodName) {
-        this.id = id;
+        this.name = name;
         // optional data
         this.wasmModule = wasmModule;
         this.factoryClassName = factoryClassName;
         this.factoryMethodName = factoryMethodName;
     }
 
-    public String getId() {
-        return id;
+    public String getName() {
+        return name;
     }
 
     public WasmModule getWasmModule() {
@@ -41,16 +41,16 @@ public class WasmModuleContext {
 
     /**
      * Returns a {@link Instance} obtained for the {@link #getWasmModule()}.
-     * <p>
-     * In quarkus:dev mode, the Wasm module is compiled via runtime compilation.
-     * In production mode, if both {@link #factoryClassName} and {@link #factoryMethodName} are initialized,
+     * <ul>
+     * <li></il>In <i>quarkus:dev mode</i>, the Wasm module is compiled via runtime compilation.</li>
+     * <li>In <i>production mode</i>, if both {@link #factoryClassName} and {@link #factoryMethodName} are initialized,
      * the API provided by the Java classes generated at build time is used, otherwise runtime compilation
-     * is used.
-     * </p>
+     * is used.</li>
+     * </ul>
      *
      * @return A {@link Instance} object that is the run-time representation of the Wasm module code.
      */
-    public Instance getInstance() {
+    public Instance instance() {
         // lazily generate instance
         if (this.instance == null) {
             Instance.Builder builder = Instance.builder(this.getWasmModule());
@@ -82,13 +82,13 @@ public class WasmModuleContext {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("WasmModuleContext{id=").append(id)
+        sb.append("WasmModuleContext{id=").append(name)
                 .append(", wasmModule=").append(wasmModule.toString());
         if (!StringUtil.isNullOrEmpty(factoryClassName)) {
             sb.append(", factoryClassName=").append(factoryClassName);
         }
         if (!StringUtil.isNullOrEmpty(factoryMethodName)) {
-            sb.append(", factoryClassName=").append(factoryMethodName);
+            sb.append(", factoryMethodName=").append(factoryMethodName);
         }
         return sb + "}";
     }
@@ -98,13 +98,13 @@ public class WasmModuleContext {
     }
 
     public static final class Builder {
-        private final String id;
+        private final String name;
         private final WasmModule wasmModule;
         private String factoryClassName;
         private String factoryMethodName;
 
-        private Builder(final String id, final WasmModule wasmModule) {
-            this.id = id;
+        private Builder(final String name, final WasmModule wasmModule) {
+            this.name = name;
             this.wasmModule = wasmModule;
         }
 
@@ -119,7 +119,7 @@ public class WasmModuleContext {
         }
 
         public WasmModuleContext build() {
-            return new WasmModuleContext(id, wasmModule, factoryClassName, factoryMethodName);
+            return new WasmModuleContext(name, wasmModule, factoryClassName, factoryMethodName);
         }
     }
 }

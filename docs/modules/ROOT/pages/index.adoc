@@ -1,8 +1,26 @@
-= Quarkus Chicory
+= Quarkus Chicory - An extension to easily integrate https://github.com/dylibso/chicory[Chicory] in your Quarkus applications
 
 include::./includes/attributes.adoc[]
 
-TIP: Describe what the extension does here.
+== Features
+
+- Java resources and bytecode generation at build time, similar to what is done by the Chicory Maven plugin.
+
+- Handle the alignment between Quarkus and Chicory ASM dependencies, so that it is transparent from the application
+point of view.
+
+- Allows for an application to configure multiple Wasm modules.
+
+- Wasm modules can be either statically configured or dynamically provided at runtime (e.g.: via a REST API upload call)
+
+- Automatic selection of the proper Chicory _compiler mode_, depending on the Quarkus runtime environment:
+ * In _quarkus:dev mode_ the _runtime_ compiler is used, so that changes to the Wasm payload are picked up automatically.
+ * Makes it easy to iterate on both the Java and the Wasm sides without restarting anything — a really nice developer
+workflow.
+
+- In _production builds or native-image_ the _build-time_ compiler is used, when the Wasm payload is fixed.
+ * If the Wasm payload is provided or replaced dynamically at runtime (e.g.: uploaded via a REST API call), Quarkus
+Chicory falls back the _runtime_ compiler.
 
 == Installation
 
@@ -21,7 +39,5 @@ For instance, with Maven, add the following dependency to your POM file:
 
 [[extension-configuration-reference]]
 == Extension Configuration Reference
-
-TIP: Remove this section if you don't have Quarkus configuration properties in your extension.
 
 include::includes/quarkus-chicory.adoc[leveloffset=+1, opts=optional]

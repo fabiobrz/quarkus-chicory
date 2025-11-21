@@ -43,6 +43,11 @@
             </dependency>
             <dependency>
                 <groupId>com.dylibso.chicory</groupId>
+                <artifactId>build-time-compiler</artifactId>
+                <version>${dylibso.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.dylibso.chicory</groupId>
                 <artifactId>compiler</artifactId>
                 <version>${dylibso.version}</version>
             </dependency>
