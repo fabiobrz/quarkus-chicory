@@ -7,34 +7,17 @@
         <artifactId>quarkus-chicory-parent</artifactId>
         <version>999-SNAPSHOT</version>
     </parent>
-    <artifactId>quarkus-chicory-integration-tests</artifactId>
-    <name>Quarkus Chicory - Integration Tests</name>
+    <artifactId>quarkus-chicory-integration-tests-parent</artifactId>
+    <name>Quarkus Chicory - Integration Tests Parent</name>
+    <packaging>pom</packaging>
 
     <properties>
         <skipITs>true</skipITs>
     </properties>
 
-    <dependencies>
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-rest</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.quarkiverse</groupId>
-            <artifactId>quarkus-chicory</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-junit5</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.rest-assured</groupId>
-            <artifactId>rest-assured</artifactId>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
+    <modules>
+        <module>hello-world</module>
+    </modules>
 
     <build>
         <plugins>

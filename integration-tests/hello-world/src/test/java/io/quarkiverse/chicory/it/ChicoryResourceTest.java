@@ -16,6 +16,6 @@ public class ChicoryResourceTest {
                 .when().get("/chicory")
                 .then()
                 .statusCode(200)
-                .body(is("Hello chicory"));
+                .body(is("Hello chicory " + 42));
     }
 }
