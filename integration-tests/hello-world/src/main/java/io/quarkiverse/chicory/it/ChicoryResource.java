@@ -17,16 +17,29 @@
 package io.quarkiverse.chicory.it;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
+
+import io.quarkiverse.chicory.runtime.WasmModuleContextRegistry;
 
 @Path("/chicory")
 @ApplicationScoped
 public class ChicoryResource {
-    // add some rest methods here
+    // This registry "sounds" very much similar to the Store in Chicory
+    // verify if we can't reuse (Occam razor)
+    @Inject
+    WasmModuleContextRegistry wasmModuleContextRegistry;
 
     @GET
     public String hello() {
-        return "Hello chicory";
+        // TODO: guessing the name is not idiomatic in application.conf we define:
+        // quarkus.chicory.modules[0]
+        // in the photon example we call it "example" but giving the generated class name is confusing
+        var instance = wasmModuleContextRegistry.get("io.quarkiverse.chicory.it.OperationModule").instance();
+        var result = instance.export("operation").apply(41, 1);
+
+        return "Hello chicory " + result[0];
     }
+
 }
