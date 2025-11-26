@@ -3,6 +3,7 @@ package io.quarkiverse.chicory.runtime;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import com.dylibso.chicory.compiler.InterpreterFallback;
@@ -25,7 +26,7 @@ public interface ChicoryConfig {
      *
      * @return A list of configured Wasm modules.
      */
-    List<ChicoryConfig.ModuleConfig> modules();
+    Map<String, ModuleConfig> modules();
 
     /**
      * Inner interface representing a single Wasm module configuration.
