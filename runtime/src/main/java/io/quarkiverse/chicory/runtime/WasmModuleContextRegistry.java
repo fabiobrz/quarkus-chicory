@@ -23,15 +23,15 @@ public class WasmModuleContextRegistry {
      */
     public WasmModuleContextRegistry(ChicoryConfig config) {
         // Initialize the internal registry map
-        this.registry = config.modules().stream()
-                .map(this::createContext)
+        this.registry = config.modules().entrySet().stream()
+                .map(e -> this.createContext(e.getKey(), e.getValue()))
                 .collect(Collectors.toMap(WasmModuleContext::getName, module -> module));
         logAll();
     }
 
-    private WasmModuleContext createContext(ChicoryConfig.ModuleConfig config) {
+    private WasmModuleContext createContext(final String key, final ChicoryConfig.ModuleConfig config) {
         final String factoryClassName = config.name();
-        return WasmModuleContext.builder(config.name(), Parser.parse(config.wasmFile()))
+        return WasmModuleContext.builder(key, Parser.parse(config.wasmFile()))
                 .withFactoryClassName(factoryClassName)
                 .withFactoryMethodName(FACTORY_METHOD_NAME_CREATE).build();
     }

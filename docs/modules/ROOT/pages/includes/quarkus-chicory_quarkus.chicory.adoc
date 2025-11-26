@@ -7,9 +7,9 @@ h|[.header-title]##Configuration property##
 h|Type
 h|Default
 
-a|icon:lock[title=Fixed at build time] [[quarkus-chicory_quarkus-chicory-modules-wasm-file]] [.property-path]##link:#quarkus-chicory_quarkus-chicory-modules-wasm-file[`quarkus.chicory.modules.wasm-file`]##
+a|icon:lock[title=Fixed at build time] [[quarkus-chicory_quarkus-chicory-modules-modules-wasm-file]] [.property-path]##link:#quarkus-chicory_quarkus-chicory-modules-modules-wasm-file[`quarkus.chicory.modules."modules".wasm-file`]##
 ifdef::add-copy-button-to-config-props[]
-config_property_copy_button:+++quarkus.chicory.modules.wasm-file+++[]
+config_property_copy_button:+++quarkus.chicory.modules."modules".wasm-file+++[]
 endif::add-copy-button-to-config-props[]
 
 
@@ -19,18 +19,18 @@ The Wasm module to be used.
 
 
 ifdef::add-copy-button-to-env-var[]
-Environment variable: env_var_with_copy_button:+++QUARKUS_CHICORY_MODULES_WASM_FILE+++[]
+Environment variable: env_var_with_copy_button:+++QUARKUS_CHICORY_MODULES__MODULES__WASM_FILE+++[]
 endif::add-copy-button-to-env-var[]
 ifndef::add-copy-button-to-env-var[]
-Environment variable: `+++QUARKUS_CHICORY_MODULES_WASM_FILE+++`
+Environment variable: `+++QUARKUS_CHICORY_MODULES__MODULES__WASM_FILE+++`
 endif::add-copy-button-to-env-var[]
 --
 |path
 |required icon:exclamation-circle[title=Configuration property is required]
 
-a|icon:lock[title=Fixed at build time] [[quarkus-chicory_quarkus-chicory-modules-name]] [.property-path]##link:#quarkus-chicory_quarkus-chicory-modules-name[`quarkus.chicory.modules.name`]##
+a|icon:lock[title=Fixed at build time] [[quarkus-chicory_quarkus-chicory-modules-modules-name]] [.property-path]##link:#quarkus-chicory_quarkus-chicory-modules-modules-name[`quarkus.chicory.modules."modules".name`]##
 ifdef::add-copy-button-to-config-props[]
-config_property_copy_button:+++quarkus.chicory.modules.name+++[]
+config_property_copy_button:+++quarkus.chicory.modules."modules".name+++[]
 endif::add-copy-button-to-config-props[]
 
 
@@ -40,18 +40,18 @@ The base name to be used for the generated API class.
 
 
 ifdef::add-copy-button-to-env-var[]
-Environment variable: env_var_with_copy_button:+++QUARKUS_CHICORY_MODULES_NAME+++[]
+Environment variable: env_var_with_copy_button:+++QUARKUS_CHICORY_MODULES__MODULES__NAME+++[]
 endif::add-copy-button-to-env-var[]
 ifndef::add-copy-button-to-env-var[]
-Environment variable: `+++QUARKUS_CHICORY_MODULES_NAME+++`
+Environment variable: `+++QUARKUS_CHICORY_MODULES__MODULES__NAME+++`
 endif::add-copy-button-to-env-var[]
 --
 |string
 |required icon:exclamation-circle[title=Configuration property is required]
 
-a|icon:lock[title=Fixed at build time] [[quarkus-chicory_quarkus-chicory-modules-compiler-interpreter-fallback]] [.property-path]##link:#quarkus-chicory_quarkus-chicory-modules-compiler-interpreter-fallback[`quarkus.chicory.modules.compiler.interpreter-fallback`]##
+a|icon:lock[title=Fixed at build time] [[quarkus-chicory_quarkus-chicory-modules-modules-compiler-interpreter-fallback]] [.property-path]##link:#quarkus-chicory_quarkus-chicory-modules-modules-compiler-interpreter-fallback[`quarkus.chicory.modules."modules".compiler.interpreter-fallback`]##
 ifdef::add-copy-button-to-config-props[]
-config_property_copy_button:+++quarkus.chicory.modules.compiler.interpreter-fallback+++[]
+config_property_copy_button:+++quarkus.chicory.modules."modules".compiler.interpreter-fallback+++[]
 endif::add-copy-button-to-config-props[]
 
 
@@ -61,18 +61,18 @@ The action to take if the compiler needs to use the interpreter because a functi
 
 
 ifdef::add-copy-button-to-env-var[]
-Environment variable: env_var_with_copy_button:+++QUARKUS_CHICORY_MODULES_COMPILER_INTERPRETER_FALLBACK+++[]
+Environment variable: env_var_with_copy_button:+++QUARKUS_CHICORY_MODULES__MODULES__COMPILER_INTERPRETER_FALLBACK+++[]
 endif::add-copy-button-to-env-var[]
 ifndef::add-copy-button-to-env-var[]
-Environment variable: `+++QUARKUS_CHICORY_MODULES_COMPILER_INTERPRETER_FALLBACK+++`
+Environment variable: `+++QUARKUS_CHICORY_MODULES__MODULES__COMPILER_INTERPRETER_FALLBACK+++`
 endif::add-copy-button-to-env-var[]
 --
 a|`silent`, `warn`, `fail`
 |`+++fail+++`
 
-a|icon:lock[title=Fixed at build time] [[quarkus-chicory_quarkus-chicory-modules-compiler-interpreted-functions]] [.property-path]##link:#quarkus-chicory_quarkus-chicory-modules-compiler-interpreted-functions[`quarkus.chicory.modules.compiler.interpreted-functions`]##
+a|icon:lock[title=Fixed at build time] [[quarkus-chicory_quarkus-chicory-modules-modules-compiler-interpreted-functions]] [.property-path]##link:#quarkus-chicory_quarkus-chicory-modules-modules-compiler-interpreted-functions[`quarkus.chicory.modules."modules".compiler.interpreted-functions`]##
 ifdef::add-copy-button-to-config-props[]
-config_property_copy_button:+++quarkus.chicory.modules.compiler.interpreted-functions+++[]
+config_property_copy_button:+++quarkus.chicory.modules."modules".compiler.interpreted-functions+++[]
 endif::add-copy-button-to-config-props[]
 
 
@@ -82,10 +82,10 @@ The indexes of functions that should be interpreted, separated by commas
 
 
 ifdef::add-copy-button-to-env-var[]
-Environment variable: env_var_with_copy_button:+++QUARKUS_CHICORY_MODULES_COMPILER_INTERPRETED_FUNCTIONS+++[]
+Environment variable: env_var_with_copy_button:+++QUARKUS_CHICORY_MODULES__MODULES__COMPILER_INTERPRETED_FUNCTIONS+++[]
 endif::add-copy-button-to-env-var[]
 ifndef::add-copy-button-to-env-var[]
-Environment variable: `+++QUARKUS_CHICORY_MODULES_COMPILER_INTERPRETED_FUNCTIONS+++`
+Environment variable: `+++QUARKUS_CHICORY_MODULES__MODULES__COMPILER_INTERPRETED_FUNCTIONS+++`
 endif::add-copy-button-to-env-var[]
 --
 |list of int

@@ -86,7 +86,8 @@ class ChicoryProcessor {
 
         final List<GeneratedWasmClassesBuildItem> result = new ArrayList<>();
 
-        for (ChicoryConfig.ModuleConfig moduleConfig : chicoryConfig.modules()) {
+        for (Map.Entry<String, ChicoryConfig.ModuleConfig> entry : chicoryConfig.modules().entrySet()) {
+            final ChicoryConfig.ModuleConfig moduleConfig = entry.getValue();
             final String name = moduleConfig.name();
             final Path wasmFile = moduleConfig.wasmFile();
             final Path targetClassFolder = chicoryConfig.generator().targetClassFolder();
@@ -94,7 +95,7 @@ class ChicoryProcessor {
             final Path targetSourceFolder = chicoryConfig.generator().targetSourceFolder();
             final Optional<List<Integer>> interpretedFunctionsConfig = moduleConfig.compiler().interpretedFunctions();
 
-            Log.info("Generating bytecode for " + name + " from " + wasmFile);
+            Log.info("Generating bytecode for " + entry.getKey() + " from " + wasmFile);
             final Config config = Config.builder()
                     .withWasmFile(wasmFile)
                     .withName(name)
