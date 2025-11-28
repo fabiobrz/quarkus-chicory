@@ -1,8 +1,10 @@
 package io.quarkiverse.chicory.deployment;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -16,12 +18,14 @@ import io.quarkiverse.chicory.runtime.ChicoryConfig;
 import io.quarkiverse.chicory.runtime.WasmModuleContextRecorder;
 import io.quarkiverse.chicory.runtime.WasmModuleContextRegistry;
 import io.quarkus.arc.deployment.SyntheticBeanBuildItem;
+import io.quarkus.deployment.IsDevelopment;
 import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.annotations.ExecutionTime;
 import io.quarkus.deployment.annotations.Record;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
 import io.quarkus.deployment.builditem.GeneratedClassBuildItem;
 import io.quarkus.deployment.builditem.GeneratedResourceBuildItem;
+import io.quarkus.deployment.builditem.HotDeploymentWatchedFileBuildItem;
 import io.quarkus.logging.Log;
 import io.quarkus.runtime.RuntimeValue;
 
@@ -89,7 +93,26 @@ class ChicoryProcessor {
         for (Map.Entry<String, ChicoryConfig.ModuleConfig> entry : chicoryConfig.modules().entrySet()) {
             final ChicoryConfig.ModuleConfig moduleConfig = entry.getValue();
             final String name = moduleConfig.name();
-            final Path wasmFile = moduleConfig.wasmFile();
+            final Path wasmFile;
+            if (moduleConfig.wasmFile().isPresent()) {
+                wasmFile = moduleConfig.wasmFile().get();
+            } else if (moduleConfig.wasmResource().isPresent()) {
+                String wasmResource = moduleConfig.wasmResource().get();
+                wasmFile = Files.createTempFile("chicory", "wasm");
+                try (InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream(wasmResource)) {
+                    if (is != null) {
+                        Files.copy(is, wasmFile, StandardCopyOption.REPLACE_EXISTING);
+                    } else {
+                        throw new IllegalStateException("Cannot access Wasm module resource: " + wasmResource);
+                    }
+                } catch (IOException e) {
+                    throw new IllegalStateException(
+                            String.format("Cannot create Wasm module resource (%s) temporary file", wasmResource), e);
+                }
+            } else {
+                throw new IllegalStateException(
+                        "Cannot create Wasm module context payload because neither a resource name nor a file path is defined.");
+            }
             final Path targetClassFolder = chicoryConfig.generator().targetClassFolder();
             final Path targetWasmFolder = chicoryConfig.generator().targetWasmFolder();
             final Path targetSourceFolder = chicoryConfig.generator().targetSourceFolder();
@@ -223,5 +246,29 @@ class ChicoryProcessor {
                     Files.readAllBytes(javaSources)));
         }
         return generatedJavaSources;
+    }
+
+    /**
+     * Only in dev mode, the configured Wasm modules that define a filesystem path are added to the watched resources.
+     *
+     * @param chicoryConfig The application configuration, storing all the configured modules.
+     * @return A list of {@link HotDeploymentWatchedFileBuildItem}, representing the collection f
+     * Wasm module files that will be watched in dev mode.
+     */
+    @BuildStep(onlyIf = IsDevelopment.class)
+    List<HotDeploymentWatchedFileBuildItem> addWatchedResources(ChicoryConfig chicoryConfig) {
+        List<HotDeploymentWatchedFileBuildItem> result = new ArrayList<>();
+
+        for (Map.Entry<String, ChicoryConfig.ModuleConfig> entry : chicoryConfig.modules().entrySet()) {
+            final ChicoryConfig.ModuleConfig moduleConfig = entry.getValue();
+            final String name = moduleConfig.name();
+            final Path wasmFile;
+            if (moduleConfig.wasmFile().isPresent()) {
+                wasmFile = moduleConfig.wasmFile().get();
+                Log.info("Adding " + wasmFile + " to the collection of watched resources (dev mode)");
+                new HotDeploymentWatchedFileBuildItem(wasmFile.toAbsolutePath().toString());
+            }
+        }
+        return result;
     }
 }
