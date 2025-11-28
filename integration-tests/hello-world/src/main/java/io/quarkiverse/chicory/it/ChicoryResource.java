@@ -17,16 +17,27 @@
 package io.quarkiverse.chicory.it;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
+
+import io.quarkiverse.chicory.runtime.WasmModuleContextRegistry;
 
 @Path("/chicory")
 @ApplicationScoped
 public class ChicoryResource {
-    // add some rest methods here
+
+    @Inject
+    WasmModuleContextRegistry wasmModuleContextRegistry;
 
     @GET
     public String hello() {
-        return "Hello chicory";
+        // The Wasm module is obtained from wasmModuleContextRegistry by the name it was registered with,
+        // either statically at build time (via the application configuration) or dynamically at runtime.
+        var instance = wasmModuleContextRegistry.get("operation").instance();
+        var result = instance.export("operation").apply(41, 1);
+
+        return "Hello chicory " + result[0];
     }
+
 }

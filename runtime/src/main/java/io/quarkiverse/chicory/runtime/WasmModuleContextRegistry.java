@@ -1,5 +1,7 @@
 package io.quarkiverse.chicory.runtime;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -31,9 +33,23 @@ public class WasmModuleContextRegistry {
 
     private WasmModuleContext createContext(final String key, final ChicoryConfig.ModuleConfig config) {
         final String factoryClassName = config.name();
-        return WasmModuleContext.builder(key, Parser.parse(config.wasmFile()))
-                .withFactoryClassName(factoryClassName)
-                .withFactoryMethodName(FACTORY_METHOD_NAME_CREATE).build();
+        WasmModuleContext.Builder builder;
+        if (config.wasmFile().isPresent()) {
+            builder = WasmModuleContext.builder(key, Parser.parse(config.wasmFile().get()));
+        } else if (config.wasmResource().isPresent()) {
+            String wasmResource = config.wasmResource().get();
+            try (InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream(wasmResource)) {
+                builder = WasmModuleContext.builder(key, Parser.parse(is));
+            } catch (IOException e) {
+                throw new IllegalStateException("Cannot access Wasm module resource: " + wasmResource, e);
+            }
+        } else {
+            throw new IllegalStateException(
+                    "Cannot create Wasm module context payload because neither a resource name nor a file path is defined.");
+        }
+        return builder.withFactoryClassName(factoryClassName)
+                .withFactoryMethodName(FACTORY_METHOD_NAME_CREATE)
+                .build();
     }
 
     public WasmModuleContext get(String name) {

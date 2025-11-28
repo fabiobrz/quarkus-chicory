@@ -33,12 +33,20 @@ public interface ChicoryConfig {
      */
     interface ModuleConfig {
         /**
-         * The Wasm module to be used.
+         * The Wasm module file to be used. If {@link #wasmResource()} is defined too, this has precedence over it.
          *
          * @return A {@link File} instance representing a configured Wasm module which is backed by a static file.
          */
         @WithName("wasm-file")
-        Path wasmFile();
+        Optional<Path> wasmFile();
+
+        /**
+         * The Wasm module to be used. If {@link #wasmFile()} is defined too, it has precedence over this.
+         *
+         * @return The name of a classpath resource representing a configured Wasm module which is backed by a static file.
+         */
+        @WithName("wasm-resource")
+        Optional<String> wasmResource();
 
         /**
          * The base name to be used for the generated API class.

@@ -15,7 +15,7 @@ endif::add-copy-button-to-config-props[]
 
 [.description]
 --
-The Wasm module to be used.
+The Wasm module file to be used. If `wasm-resource()` is defined too, this has precedence over it.
 
 
 ifdef::add-copy-button-to-env-var[]
@@ -26,7 +26,28 @@ Environment variable: `+++QUARKUS_CHICORY_MODULES__MODULES__WASM_FILE+++`
 endif::add-copy-button-to-env-var[]
 --
 |path
-|required icon:exclamation-circle[title=Configuration property is required]
+|
+
+a|icon:lock[title=Fixed at build time] [[quarkus-chicory_quarkus-chicory-modules-modules-wasm-resource]] [.property-path]##link:#quarkus-chicory_quarkus-chicory-modules-modules-wasm-resource[`quarkus.chicory.modules."modules".wasm-resource`]##
+ifdef::add-copy-button-to-config-props[]
+config_property_copy_button:+++quarkus.chicory.modules."modules".wasm-resource+++[]
+endif::add-copy-button-to-config-props[]
+
+
+[.description]
+--
+The Wasm module to be used. If `wasm-file()` is defined too, it has precedence over this.
+
+
+ifdef::add-copy-button-to-env-var[]
+Environment variable: env_var_with_copy_button:+++QUARKUS_CHICORY_MODULES__MODULES__WASM_RESOURCE+++[]
+endif::add-copy-button-to-env-var[]
+ifndef::add-copy-button-to-env-var[]
+Environment variable: `+++QUARKUS_CHICORY_MODULES__MODULES__WASM_RESOURCE+++`
+endif::add-copy-button-to-env-var[]
+--
+|string
+|
 
 a|icon:lock[title=Fixed at build time] [[quarkus-chicory_quarkus-chicory-modules-modules-name]] [.property-path]##link:#quarkus-chicory_quarkus-chicory-modules-modules-name[`quarkus.chicory.modules."modules".name`]##
 ifdef::add-copy-button-to-config-props[]
