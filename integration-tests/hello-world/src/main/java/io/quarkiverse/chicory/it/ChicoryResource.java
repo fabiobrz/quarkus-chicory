@@ -26,17 +26,15 @@ import io.quarkiverse.chicory.runtime.WasmModuleContextRegistry;
 @Path("/chicory")
 @ApplicationScoped
 public class ChicoryResource {
-    // This registry "sounds" very much similar to the Store in Chicory
-    // verify if we can't reuse (Occam razor)
+
     @Inject
     WasmModuleContextRegistry wasmModuleContextRegistry;
 
     @GET
     public String hello() {
-        // TODO: guessing the name is not idiomatic in application.conf we define:
-        // quarkus.chicory.modules[0]
-        // in the photon example we call it "example" but giving the generated class name is confusing
-        var instance = wasmModuleContextRegistry.get("io.quarkiverse.chicory.it.OperationModule").instance();
+        // The Wasm module is obtained from wasmModuleContextRegistry by the name it was registered with,
+        // either statically at build time (via the application configuration) or dynamically at runtime.
+        var instance = wasmModuleContextRegistry.get("operation").instance();
         var result = instance.export("operation").apply(41, 1);
 
         return "Hello chicory " + result[0];
