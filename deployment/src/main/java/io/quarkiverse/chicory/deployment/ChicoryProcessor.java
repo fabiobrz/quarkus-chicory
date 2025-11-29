@@ -14,9 +14,11 @@ import jakarta.enterprise.context.ApplicationScoped;
 import com.dylibso.chicory.build.time.compiler.Config;
 import com.dylibso.chicory.build.time.compiler.Generator;
 
-import io.quarkiverse.chicory.runtime.ChicoryConfig;
-import io.quarkiverse.chicory.runtime.WasmModuleContextRecorder;
-import io.quarkiverse.chicory.runtime.WasmModuleContextRegistry;
+import io.quarkiverse.chicory.runtime.*;
+import io.quarkiverse.chicory.runtime.wasm.Catalog;
+import io.quarkiverse.chicory.runtime.wasm.ContextRecorder;
+import io.quarkiverse.chicory.runtime.wasm.DynamicCatalog;
+import io.quarkiverse.chicory.runtime.wasm.StaticCatalog;
 import io.quarkus.arc.deployment.SyntheticBeanBuildItem;
 import io.quarkus.deployment.IsDevelopment;
 import io.quarkus.deployment.annotations.BuildStep;
@@ -32,7 +34,7 @@ import io.quarkus.runtime.RuntimeValue;
 /**
  * The Quarkus Chicory deployment processor implements the following features:
  * <ul>
- * <li>Provide an application scoped bean that exposes a registry of configured Wasm modules</li>
+ * <li>Provide an application scoped bean that exposes a catalog of configured Wasm modules</li>
  * <li>Replace the Chicory Maven plugin functionality to generate bytecode and Wasm meta files</li>
  * </ul>
  * <p>
@@ -41,7 +43,7 @@ import io.quarkus.runtime.RuntimeValue;
  * classes and resources that will be built as part of the application, thus replacing the Chicory Maven plugin
  * functionality.
  * <br>
- * Finally, a build step generates a synthetic application scoped registry that stores Wasm module context
+ * Finally, a build step generates a synthetic application scoped catalog that stores Wasm module context
  * data, both configured at build time, and dynamically added at runtime.
  * </p>
  */
@@ -55,20 +57,42 @@ class ChicoryProcessor {
     }
 
     /**
-     * Register the recorded object, i.e. {@link WasmModuleContextRegistry} as an {@link ApplicationScoped} CDI bean.
+     * Register the recorded object, i.e. {@link Catalog} as an {@link ApplicationScoped} CDI bean.
      *
      * @param recorder The {@link io.quarkus.runtime.annotations.Recorder} instance that provides a runtime
-     *        reference to a configured {@link WasmModuleContextRegistry}.
+     *        reference to a configured {@link Catalog}.
      * @param config The application configuration that defines the configured Wasm modules.
-     * @return A configured {@link WasmModuleContextRegistry} as an {@link ApplicationScoped} bean.
+     * @return A configured {@link Catalog} as an {@link ApplicationScoped} bean.
      */
     @BuildStep
     @Record(ExecutionTime.RUNTIME_INIT)
-    public SyntheticBeanBuildItem configureWasmModuleContextRegistry(WasmModuleContextRecorder recorder,
+    public SyntheticBeanBuildItem registerStaticWasmModuleContextCatalog(ContextRecorder recorder,
             ChicoryConfig config) {
 
-        RuntimeValue<WasmModuleContextRegistry> serviceRuntimeValue = recorder.createWasmModuleContextRegistry(config);
-        return SyntheticBeanBuildItem.configure(WasmModuleContextRegistry.class)
+        RuntimeValue<StaticCatalog> serviceRuntimeValue = recorder
+                .createStaticWasmModuleContextCatalog(config);
+        return SyntheticBeanBuildItem.configure(StaticCatalog.class)
+                .scope(ApplicationScoped.class)
+                .runtimeValue(serviceRuntimeValue)
+                .setRuntimeInit()
+                .done();
+    }
+
+    /**
+     * Register the recorded object, i.e. {@link Catalog} as an {@link ApplicationScoped} CDI bean.
+     *
+     * @param recorder The {@link io.quarkus.runtime.annotations.Recorder} instance that provides a runtime
+     *        reference to a configured {@link Catalog}.
+     * @param config The application configuration that defines the configured Wasm modules.
+     * @return A configured {@link Catalog} as an {@link ApplicationScoped} bean.
+     */
+    @BuildStep
+    @Record(ExecutionTime.RUNTIME_INIT)
+    public SyntheticBeanBuildItem registerDynamicWasmModuleContextCatalog(ContextRecorder recorder,
+            ChicoryConfig config) {
+
+        RuntimeValue<DynamicCatalog> serviceRuntimeValue = recorder.createDynamicWasmModuleContextCatalog();
+        return SyntheticBeanBuildItem.configure(DynamicCatalog.class)
                 .scope(ApplicationScoped.class)
                 .runtimeValue(serviceRuntimeValue)
                 .setRuntimeInit()
@@ -253,7 +277,7 @@ class ChicoryProcessor {
      *
      * @param chicoryConfig The application configuration, storing all the configured modules.
      * @return A list of {@link HotDeploymentWatchedFileBuildItem}, representing the collection f
-     * Wasm module files that will be watched in dev mode.
+     *         Wasm module files that will be watched in dev mode.
      */
     @BuildStep(onlyIf = IsDevelopment.class)
     List<HotDeploymentWatchedFileBuildItem> addWatchedResources(ChicoryConfig chicoryConfig) {

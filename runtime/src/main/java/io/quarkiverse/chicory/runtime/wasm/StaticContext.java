@@ -1,4 +1,4 @@
-package io.quarkiverse.chicory.runtime;
+package io.quarkiverse.chicory.runtime.wasm;
 
 import com.dylibso.chicory.compiler.MachineFactoryCompiler;
 import com.dylibso.chicory.runtime.ByteArrayMemory;
@@ -10,33 +10,21 @@ import io.quarkus.runtime.LaunchMode;
 import io.quarkus.runtime.util.StringUtil;
 
 /**
- * A managed Wasm module context, holding the information needed by {@link WasmModuleContextRegistry} and client
- * applications.
+ * A managed <i>static</i> Wasm module context, holding the information needed by
+ * {@link Catalog} and client applications.
  */
-public class WasmModuleContext {
-    private final String name;
-    private final WasmModule wasmModule;
+public class StaticContext extends Context {
 
     private final String factoryClassName;
     private final String factoryMethodName;
 
     private Instance instance;
 
-    WasmModuleContext(final String name, final WasmModule wasmModule, final String factoryClassName,
+    StaticContext(final String name, final WasmModule wasmModule, final String factoryClassName,
             final String factoryMethodName) {
-        this.name = name;
-        // optional data
-        this.wasmModule = wasmModule;
+        super(name, wasmModule);
         this.factoryClassName = factoryClassName;
         this.factoryMethodName = factoryMethodName;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public WasmModule getWasmModule() {
-        return wasmModule;
     }
 
     /**
@@ -50,7 +38,8 @@ public class WasmModuleContext {
      *
      * @return A {@link Instance} object that is the run-time representation of the Wasm module code.
      */
-    public Instance instance() {
+    @Override
+    public Instance chicoryInstance() {
         // lazily generate instance
         if (this.instance == null) {
             Instance.Builder builder = Instance.builder(this.getWasmModule());
@@ -65,7 +54,7 @@ public class WasmModuleContext {
                     builder.withMachineFactory(MachineFactoryCompiler::compile)
                             .withMemoryFactory(ByteArrayMemory::new);
                 } else {
-                    builder.withMachineFactory(WasmModuleUtils.loadMachineFactoryFunction(
+                    builder.withMachineFactory(Utils.loadMachineFactoryFunction(
                             this.factoryClassName, this.factoryMethodName));
                 }
             } else {
@@ -82,8 +71,8 @@ public class WasmModuleContext {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("WasmModuleContext{id=").append(name)
-                .append(", wasmModule=").append(wasmModule.toString());
+        sb.append("StaticWasmModuleContext{id=").append(getName())
+                .append(", wasmModule=").append(getWasmModule().toString());
         if (!StringUtil.isNullOrEmpty(factoryClassName)) {
             sb.append(", factoryClassName=").append(factoryClassName);
         }
@@ -91,35 +80,5 @@ public class WasmModuleContext {
             sb.append(", factoryMethodName=").append(factoryMethodName);
         }
         return sb + "}";
-    }
-
-    public static WasmModuleContext.Builder builder(final String id, final WasmModule wasmModule) {
-        return new WasmModuleContext.Builder(id, wasmModule);
-    }
-
-    public static final class Builder {
-        private final String name;
-        private final WasmModule wasmModule;
-        private String factoryClassName;
-        private String factoryMethodName;
-
-        private Builder(final String name, final WasmModule wasmModule) {
-            this.name = name;
-            this.wasmModule = wasmModule;
-        }
-
-        public WasmModuleContext.Builder withFactoryClassName(final String factoryClassName) {
-            this.factoryClassName = factoryClassName;
-            return this;
-        }
-
-        public WasmModuleContext.Builder withFactoryMethodName(final String factoryMethodName) {
-            this.factoryMethodName = factoryMethodName;
-            return this;
-        }
-
-        public WasmModuleContext build() {
-            return new WasmModuleContext(name, wasmModule, factoryClassName, factoryMethodName);
-        }
     }
 }

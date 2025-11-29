@@ -1,4 +1,4 @@
-package io.quarkiverse.chicory.runtime;
+package io.quarkiverse.chicory.runtime.wasm;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -11,7 +11,7 @@ import com.dylibso.chicory.runtime.Machine;
 /**
  * Utilities used by the classes in the {@link io.quarkiverse.chicory.runtime} package.
  */
-public class WasmModuleUtils {
+public class Utils {
 
     /**
      * Returns a function that represents the actual Wasm module factory method.
@@ -28,7 +28,7 @@ public class WasmModuleUtils {
             MethodHandles.Lookup lookup = MethodHandles.lookup();
             MethodHandle methodHandle = lookup.findStatic(dynamicClass, methodName, functionType);
             MethodHandle adaptedHandle = methodHandle.asType(functionType);
-            return new WasmModuleUtils.InvokedFunction(adaptedHandle);
+            return new Utils.InvokedFunction(adaptedHandle);
         } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException e) {
             throw new IllegalStateException("Cannot load the machine factory function reference: " + e);
         }
