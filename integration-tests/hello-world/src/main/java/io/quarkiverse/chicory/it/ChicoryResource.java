@@ -36,7 +36,6 @@ import com.dylibso.chicory.wasm.Parser;
 import io.quarkiverse.chicory.runtime.wasm.Context;
 import io.quarkiverse.chicory.runtime.wasm.DynamicCatalog;
 import io.quarkiverse.chicory.runtime.wasm.DynamicContext;
-import io.quarkiverse.chicory.runtime.wasm.StaticCatalog;
 import io.quarkus.logging.Log;
 
 @Path("/chicory")
@@ -44,7 +43,7 @@ import io.quarkus.logging.Log;
 public class ChicoryResource {
 
     @Inject
-    StaticCatalog staticCatalog;
+    ChicoryService chicoryService;
 
     @Inject
     DynamicCatalog dynamicCatalog;
@@ -57,8 +56,8 @@ public class ChicoryResource {
     public void init() {
         // The Wasm module is obtained from catalog by the name it was registered with,
         // here it was loaded statically at build time statically, based on the application configuration.
-        // Therefore we can rely on the injected static catalog to obtain the CHicory Instance in @PostConstruct
-        staticModuleInstance = staticCatalog.get("operation-static").chicoryInstance();
+        // Therefore, we can rely on the injected static catalog to obtain the CHicory Instance in @PostConstruct
+        staticModuleInstance = chicoryService.getInstance("operation-static");
     }
 
     @GET
