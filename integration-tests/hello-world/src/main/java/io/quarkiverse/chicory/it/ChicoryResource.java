@@ -23,6 +23,7 @@ import java.nio.file.Files;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -33,9 +34,9 @@ import org.jboss.resteasy.reactive.multipart.FileUpload;
 import com.dylibso.chicory.runtime.Instance;
 import com.dylibso.chicory.wasm.Parser;
 
-import io.quarkiverse.chicory.runtime.wasm.Context;
-import io.quarkiverse.chicory.runtime.wasm.DynamicCatalog;
-import io.quarkiverse.chicory.runtime.wasm.DynamicContext;
+import io.quarkiverse.chicory.runtime.wasm.ExecutionMode;
+import io.quarkiverse.chicory.runtime.wasm.Wasm;
+import io.quarkiverse.chicory.runtime.wasm.Wasms;
 import io.quarkus.logging.Log;
 
 @Path("/chicory")
@@ -43,10 +44,11 @@ import io.quarkus.logging.Log;
 public class ChicoryResource {
 
     @Inject
-    ChicoryService chicoryService;
+    @Named("operation-static")
+    Wasm wasm;
 
     @Inject
-    DynamicCatalog dynamicCatalog;
+    Wasms wasms;
 
     Instance staticModuleInstance;
 
@@ -54,10 +56,10 @@ public class ChicoryResource {
 
     @PostConstruct
     public void init() {
-        // The Wasm module is obtained from catalog by the name it was registered with,
+        // The Wasm module is obtained by the name it was registered with,
         // here it was loaded statically at build time statically, based on the application configuration.
-        // Therefore, we can rely on the injected static catalog to obtain the CHicory Instance in @PostConstruct
-        staticModuleInstance = chicoryService.getInstance("operation-static");
+        // Therefore, we can rely on the injected named bean to obtain the Chicory Instance in @PostConstruct
+        staticModuleInstance = wasm.chicoryInstance();
     }
 
     @GET
@@ -70,16 +72,15 @@ public class ChicoryResource {
     @Path("/dynamic/upload")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public Response upload(@RestForm("module") FileUpload wasmModule,
-            @RestForm("mode") DynamicContext.Mode mode) throws IOException {
+            @RestForm("execution-mode") ExecutionMode executionMode) throws IOException {
         try (final InputStream wasmModuleInputStream = Files.newInputStream(wasmModule.uploadedFile())) {
             if (wasmModuleInputStream.available() <= 0) {
                 throw new IllegalArgumentException("ERROR: Wasm module NOT uploaded 0");
             }
-            Context added = dynamicCatalog.add(
-                    DynamicContext
-                            .builder(DYNAMIC_WASM_MODULE_NAME_OPERATION, Parser.parse(wasmModuleInputStream.readAllBytes()))
-                            .withMode(mode)
-                            .build());
+            Wasm added = wasms.add(Wasm.builder(
+                    DYNAMIC_WASM_MODULE_NAME_OPERATION, Parser.parse(wasmModuleInputStream.readAllBytes()))
+                    .withMode(ExecutionMode.Interpreter)
+                    .build());
             Log.info("Wasm module uploaded");
             return Response.accepted(added).build();
         }
@@ -88,16 +89,16 @@ public class ChicoryResource {
     @GET
     @Path("/dynamic")
     public Response helloDynamic() {
-        // The Wasm module is obtained from the catalog by the name it was registered with,
+        // The Wasm module is obtained by the name it was registered with,
         // here dynamically at runtime, hence we need to check for it to be actually present.
-        Context context = dynamicCatalog.get(DYNAMIC_WASM_MODULE_NAME_OPERATION);
-        if (context == null) {
+        Wasm wasm = wasms.get(DYNAMIC_WASM_MODULE_NAME_OPERATION);
+        if (wasm == null) {
             return Response.status(Response.Status.NOT_FOUND)
                     .entity("Wasm module " + DYNAMIC_WASM_MODULE_NAME_OPERATION +
                             "not found. Either you provided a wrong name, or it wasn't uploaded yet.")
                     .build();
         }
-        var instance = dynamicCatalog.get("operation-dynamic").chicoryInstance();
+        var instance = wasms.get("operation-dynamic").chicoryInstance();
 
         var result = instance.export("operation").apply(41, 1);
         return Response.ok("Hello chicory (dynamic): " + result[0]).build();

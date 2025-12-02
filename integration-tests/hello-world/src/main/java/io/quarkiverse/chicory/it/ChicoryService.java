@@ -5,15 +5,15 @@ import jakarta.inject.Inject;
 
 import com.dylibso.chicory.runtime.Instance;
 
-import io.quarkiverse.chicory.runtime.wasm.StaticCatalog;
+import io.quarkiverse.chicory.runtime.wasm.Wasms;
 
 @ApplicationScoped
 public class ChicoryService {
 
     @Inject
-    StaticCatalog staticCatalog;
+    Wasms wasms;
 
     Instance getInstance(final String name) {
-        return staticCatalog.get(name).chicoryInstance();
+        return wasms.get(name).chicoryInstance();
     }
 }

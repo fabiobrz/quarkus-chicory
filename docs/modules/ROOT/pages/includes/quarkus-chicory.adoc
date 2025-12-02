@@ -70,6 +70,27 @@ endif::add-copy-button-to-env-var[]
 |string
 |required icon:exclamation-circle[title=Configuration property is required]
 
+a|icon:lock[title=Fixed at build time] [[quarkus-chicory_quarkus-chicory-modules-modules-compiler-execution-mode]] [.property-path]##link:#quarkus-chicory_quarkus-chicory-modules-modules-compiler-execution-mode[`quarkus.chicory.modules."modules".compiler.execution-mode`]##
+ifdef::add-copy-button-to-config-props[]
+config_property_copy_button:+++quarkus.chicory.modules."modules".compiler.execution-mode+++[]
+endif::add-copy-button-to-config-props[]
+
+
+[.description]
+--
+The execution mode for a configured Wasm module
+
+
+ifdef::add-copy-button-to-env-var[]
+Environment variable: env_var_with_copy_button:+++QUARKUS_CHICORY_MODULES__MODULES__COMPILER_EXECUTION_MODE+++[]
+endif::add-copy-button-to-env-var[]
+ifndef::add-copy-button-to-env-var[]
+Environment variable: `+++QUARKUS_CHICORY_MODULES__MODULES__COMPILER_EXECUTION_MODE+++`
+endif::add-copy-button-to-env-var[]
+--
+a|`runtime-compiler`, `interpreter`
+|`+++interpreter+++`
+
 a|icon:lock[title=Fixed at build time] [[quarkus-chicory_quarkus-chicory-modules-modules-compiler-interpreter-fallback]] [.property-path]##link:#quarkus-chicory_quarkus-chicory-modules-modules-compiler-interpreter-fallback[`quarkus.chicory.modules."modules".compiler.interpreter-fallback`]##
 ifdef::add-copy-button-to-config-props[]
 config_property_copy_button:+++quarkus.chicory.modules."modules".compiler.interpreter-fallback+++[]

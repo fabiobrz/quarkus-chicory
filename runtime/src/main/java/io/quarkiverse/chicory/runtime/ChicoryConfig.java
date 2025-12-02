@@ -8,6 +8,7 @@ import java.util.Optional;
 
 import com.dylibso.chicory.compiler.InterpreterFallback;
 
+import io.quarkiverse.chicory.runtime.wasm.ExecutionMode;
 import io.quarkus.runtime.annotations.ConfigPhase;
 import io.quarkus.runtime.annotations.ConfigRoot;
 import io.smallrye.config.ConfigMapping;
@@ -68,6 +69,16 @@ public interface ChicoryConfig {
          * Inner interface representing the build time compiler configuration for a single Wasm module.
          */
         interface CompilerConfig {
+
+            /**
+             * The execution mode for a configured Wasm module
+             *
+             * @return {@link ExecutionMode} value that identifies the way Chicory will execute the Wasm module code
+             */
+            @WithName("execution-mode")
+            @WithDefault("Interpreter")
+            ExecutionMode executionMode();
+
             /**
              * The action to take if the compiler needs to use the interpreter because a function is too big
              */

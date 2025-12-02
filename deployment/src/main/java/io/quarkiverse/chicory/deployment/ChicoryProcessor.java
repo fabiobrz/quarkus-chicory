@@ -15,12 +15,10 @@ import com.dylibso.chicory.build.time.compiler.Config;
 import com.dylibso.chicory.build.time.compiler.Generator;
 
 import io.quarkiverse.chicory.runtime.*;
-import io.quarkiverse.chicory.runtime.wasm.Catalog;
-import io.quarkiverse.chicory.runtime.wasm.ContextRecorder;
-import io.quarkiverse.chicory.runtime.wasm.DynamicCatalog;
-import io.quarkiverse.chicory.runtime.wasm.StaticCatalog;
+import io.quarkiverse.chicory.runtime.wasm.*;
 import io.quarkus.arc.deployment.SyntheticBeanBuildItem;
 import io.quarkus.deployment.IsDevelopment;
+import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.annotations.ExecutionTime;
 import io.quarkus.deployment.annotations.Record;
@@ -29,22 +27,27 @@ import io.quarkus.deployment.builditem.GeneratedClassBuildItem;
 import io.quarkus.deployment.builditem.GeneratedResourceBuildItem;
 import io.quarkus.deployment.builditem.HotDeploymentWatchedFileBuildItem;
 import io.quarkus.logging.Log;
-import io.quarkus.runtime.RuntimeValue;
 
 /**
  * The Quarkus Chicory deployment processor implements the following features:
  * <ul>
- * <li>Provide an application scoped bean that exposes a catalog of configured Wasm modules</li>
- * <li>Replace the Chicory Maven plugin functionality to generate bytecode and Wasm meta files</li>
+ * <li>Provide a collection of injectable named beans, each representing a configured Wasm module</li>
+ * <li>Provide an injectable bean that exposes all the loaded Wasm modules</li>
+ * <li>Replace the Chicory Maven plugin functionality to generate bytecode, Wasm meta files and raw Java sources</li>
+ * <li>Watch statically configured Wasm module files to trigger a rebuild in <i>dev mode</i></li>
  * </ul>
  * <p>
- * A build step leverages the Chicory {@link Generator} to generate the bytecode and meta Wasm files for
- * each configured Wasm module, then two subsequent build steps process the output to provide Quarkus the related
- * classes and resources that will be built as part of the application, thus replacing the Chicory Maven plugin
+ * A build step leverages the Chicory {@link Generator} to generate the bytecode, the meta Wasm files and the raw Java
+ * sources for each configured Wasm module, then two subsequent build steps process the output to provide Quarkus the
+ * related classes and resources that will be built as part of the application, thus replacing the Chicory Maven plugin
  * functionality.
  * <br>
- * Finally, a build step generates a synthetic application scoped catalog that stores Wasm module context
+ * A separate build step creates a collection of application scoped named beans, each representing a statically
+ * configured Wasm module, plus an application scoped bean that stores all loaded Wasm modules
  * data, both configured at build time, and dynamically added at runtime.
+ * <br>
+ * Finally, a build step is responsible for adding all the statically configured Wasm files to the collectin of watched
+ * resources.
  * </p>
  */
 class ChicoryProcessor {
@@ -57,52 +60,42 @@ class ChicoryProcessor {
     }
 
     /**
-     * Register the recorded object, i.e. {@link Catalog} as an {@link ApplicationScoped} CDI bean.
+     * Creates a collection of application scoped named beans, each representing a statically
+     * configured Wasm module, plus an application scoped bean that stores all loaded Wasm modules
+     * data, both configured at build time, and dynamically added at runtime.
      *
-     * @param recorder The {@link io.quarkus.runtime.annotations.Recorder} instance that provides a runtime
-     *        reference to a configured {@link Catalog}.
-     * @param config The application configuration that defines the configured Wasm modules.
-     * @return A configured {@link Catalog} as an {@link ApplicationScoped} bean.
+     * @param syntheticBeans The {@link BuildProducer} instance that creates the synthetic beans
+     * @param recorder The {@link WasmRecorder} instance that provides the logic to produce the runtime instances of the
+     *        required beans
+     * @param config The application configuration, storing all the configured modules.
      */
     @BuildStep
     @Record(ExecutionTime.RUNTIME_INIT)
-    public SyntheticBeanBuildItem registerStaticWasmModuleContextCatalog(ContextRecorder recorder,
+    void registerStaticWasm(BuildProducer<SyntheticBeanBuildItem> syntheticBeans, WasmRecorder recorder,
             ChicoryConfig config) {
-
-        RuntimeValue<StaticCatalog> serviceRuntimeValue = recorder
-                .createStaticWasmModuleContextCatalog(config);
-        return SyntheticBeanBuildItem.configure(StaticCatalog.class)
-                .scope(ApplicationScoped.class)
-                .runtimeValue(serviceRuntimeValue)
-                .setRuntimeInit()
-                .done();
-    }
-
-    /**
-     * Register the recorded object, i.e. {@link Catalog} as an {@link ApplicationScoped} CDI bean.
-     *
-     * @param recorder The {@link io.quarkus.runtime.annotations.Recorder} instance that provides a runtime
-     *        reference to a configured {@link Catalog}.
-     * @param config The application configuration that defines the configured Wasm modules.
-     * @return A configured {@link Catalog} as an {@link ApplicationScoped} bean.
-     */
-    @BuildStep
-    @Record(ExecutionTime.RUNTIME_INIT)
-    public SyntheticBeanBuildItem registerDynamicWasmModuleContextCatalog(ContextRecorder recorder,
-            ChicoryConfig config) {
-
-        RuntimeValue<DynamicCatalog> serviceRuntimeValue = recorder.createDynamicWasmModuleContextCatalog();
-        return SyntheticBeanBuildItem.configure(DynamicCatalog.class)
-                .scope(ApplicationScoped.class)
-                .runtimeValue(serviceRuntimeValue)
-                .setRuntimeInit()
-                .done();
+        // Produce synthetic Wasm module named beans
+        for (Map.Entry<String, ChicoryConfig.ModuleConfig> configEntry : config.modules().entrySet()) {
+            syntheticBeans.produce(
+                    SyntheticBeanBuildItem.configure(Wasm.class)
+                            .scope(ApplicationScoped.class)
+                            .runtimeValue(recorder.createWasm(configEntry.getKey(), config))
+                            .setRuntimeInit()
+                            .named(configEntry.getKey())
+                            .done());
+        }
+        // Produce the Wasm collection bean
+        syntheticBeans.produce(
+                SyntheticBeanBuildItem.configure(Wasms.class)
+                        .scope(ApplicationScoped.class)
+                        .runtimeValue(recorder.createWasms())
+                        .setRuntimeInit()
+                        .done());
     }
 
     /**
      * Use the Chicory build time compiler {@link Generator} to generate bytecode from configured {@code Wasm} modules.
      *
-     * @param chicoryConfig The application configuration, storing all the configured modules.
+     * @param config The application configuration, storing all the configured modules.
      * @return A collection of {@link GeneratedWasmClassesBuildItem} items, each of them storing the name of the
      *         generated Wasm module, a list of paths referencing the generated {@code .class} files,
      *         a reference to the generated {@code .meta} Wasm file, and a reference to the generated {@code .java}
@@ -110,11 +103,11 @@ class ChicoryProcessor {
      * @throws IOException If the generation fails.
      */
     @BuildStep
-    public List<GeneratedWasmClassesBuildItem> generate(ChicoryConfig chicoryConfig) throws IOException {
+    public List<GeneratedWasmClassesBuildItem> generate(ChicoryConfig config) throws IOException {
 
         final List<GeneratedWasmClassesBuildItem> result = new ArrayList<>();
 
-        for (Map.Entry<String, ChicoryConfig.ModuleConfig> entry : chicoryConfig.modules().entrySet()) {
+        for (Map.Entry<String, ChicoryConfig.ModuleConfig> entry : config.modules().entrySet()) {
             final ChicoryConfig.ModuleConfig moduleConfig = entry.getValue();
             final String name = moduleConfig.name();
             final Path wasmFile;
@@ -135,15 +128,15 @@ class ChicoryProcessor {
                 }
             } else {
                 throw new IllegalStateException(
-                        "Cannot create Wasm module context payload because neither a resource name nor a file path is defined.");
+                        "Cannot create Wasm module payload because neither a resource name nor a file path is defined.");
             }
-            final Path targetClassFolder = chicoryConfig.generator().targetClassFolder();
-            final Path targetWasmFolder = chicoryConfig.generator().targetWasmFolder();
-            final Path targetSourceFolder = chicoryConfig.generator().targetSourceFolder();
+            final Path targetClassFolder = config.generator().targetClassFolder();
+            final Path targetWasmFolder = config.generator().targetWasmFolder();
+            final Path targetSourceFolder = config.generator().targetSourceFolder();
             final Optional<List<Integer>> interpretedFunctionsConfig = moduleConfig.compiler().interpretedFunctions();
 
             Log.info("Generating bytecode for " + entry.getKey() + " from " + wasmFile);
-            final Config config = Config.builder()
+            final Config generatorConfig = Config.builder()
                     .withWasmFile(wasmFile)
                     .withName(name)
                     .withTargetClassFolder(targetClassFolder)
@@ -153,7 +146,7 @@ class ChicoryProcessor {
                     .withInterpretedFunctions(
                             interpretedFunctionsConfig.isPresent() ? new HashSet<>(interpretedFunctionsConfig.get()) : Set.of())
                     .build();
-            final Generator generator = new Generator(config);
+            final Generator generator = new Generator(generatorConfig);
             final Set<Integer> finalInterpretedFunctions = generator.generateResources();
             generator.generateMetaWasm(finalInterpretedFunctions);
             generator.generateSources();
@@ -209,7 +202,6 @@ class ChicoryProcessor {
         final List<GeneratedClassBuildItem> generatedClasses = new ArrayList<>();
 
         for (GeneratedWasmClassesBuildItem buildItem : generatedWasmClassesBuildItems) {
-
             final String name = buildItem.getName();
             Log.info("Collecting generated .class files for " + name);
 
@@ -238,9 +230,8 @@ class ChicoryProcessor {
         final List<GeneratedResourceBuildItem> generatedMetaWasm = new ArrayList<>();
 
         for (GeneratedWasmClassesBuildItem buildItem : generatedWasmClassesBuildItems) {
-            final String name = buildItem.getName();
             final Path metaWasm = buildItem.getMetaWasm();
-            Log.info("Collecting the generated .meta file: " + metaWasm + " for " + name);
+            Log.info("Collecting the generated .meta file: " + metaWasm + " for " + buildItem.getName());
             generatedMetaWasm.add(new GeneratedResourceBuildItem(metaWasm.getFileName().toString(),
                     Files.readAllBytes(metaWasm)));
         }
@@ -263,9 +254,8 @@ class ChicoryProcessor {
         final List<GeneratedResourceBuildItem> generatedJavaSources = new ArrayList<>();
 
         for (GeneratedWasmClassesBuildItem buildItem : generatedWasmClassesBuildItems) {
-            final String name = buildItem.getName();
             final Path javaSources = buildItem.getJavaSources();
-            Log.info("Collecting the generated .java file: " + javaSources + " for " + name);
+            Log.info("Collecting the generated .java file: " + javaSources + " for " + buildItem.getName());
             generatedJavaSources.add(new GeneratedResourceBuildItem(javaSources.getFileName().toString(),
                     Files.readAllBytes(javaSources)));
         }
@@ -281,11 +271,11 @@ class ChicoryProcessor {
      */
     @BuildStep(onlyIf = IsDevelopment.class)
     List<HotDeploymentWatchedFileBuildItem> addWatchedResources(ChicoryConfig chicoryConfig) {
+
         List<HotDeploymentWatchedFileBuildItem> result = new ArrayList<>();
 
         for (Map.Entry<String, ChicoryConfig.ModuleConfig> entry : chicoryConfig.modules().entrySet()) {
             final ChicoryConfig.ModuleConfig moduleConfig = entry.getValue();
-            final String name = moduleConfig.name();
             final Path wasmFile;
             if (moduleConfig.wasmFile().isPresent()) {
                 wasmFile = moduleConfig.wasmFile().get();

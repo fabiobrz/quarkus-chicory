@@ -7,7 +7,7 @@ import java.io.File;
 
 import org.junit.jupiter.api.Test;
 
-import io.quarkiverse.chicory.runtime.wasm.DynamicContext;
+import io.quarkiverse.chicory.runtime.wasm.ExecutionMode;
 import io.quarkus.test.junit.QuarkusTest;
 
 @QuarkusTest
@@ -30,7 +30,7 @@ public class ChicoryResourceTest {
         given()
                 .multiPart("module", wasmModule)
                 .multiPart("name", WASM_MODULE_NAME_OPERATION_DYNAMIC)
-                .multiPart("mode", DynamicContext.Mode.Interpreter)
+                .multiPart("execution-mode", ExecutionMode.Interpreter)
                 .when().post("/chicory/dynamic/upload")
                 .then()
                 .statusCode(202);

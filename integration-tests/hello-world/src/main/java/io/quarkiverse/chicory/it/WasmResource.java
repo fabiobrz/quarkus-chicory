@@ -11,27 +11,11 @@ import io.quarkiverse.chicory.runtime.wasm.*;
 public class WasmResource {
 
     @Inject
-    StaticCatalog staticCatalog;
-
-    @Inject
-    DynamicCatalog dynamicCatalog;
-
-    @GET
-    @Path("/static/all")
-    public Response getAllStaticContexts() {
-        return Response.ok().entity(staticCatalog.all()).build();
-    }
-
-    @GET
-    @Path("/dynamic/all")
-    public Response getAllDynamicContexts() {
-        return Response.ok().entity(dynamicCatalog.all()).build();
-    }
+    Wasms wasms;
 
     @GET
     @Path("/all")
-    public Response getAllContexts() {
-        return Response.ok().entity(
-                dynamicCatalog.all().entrySet().addAll(staticCatalog.all().entrySet())).build();
+    public Response getAll() {
+        return Response.ok().entity(wasms.all()).build();
     }
 }
