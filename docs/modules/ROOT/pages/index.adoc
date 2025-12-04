@@ -1,8 +1,39 @@
-= Quarkus Chicory
+= Quarkus Chicory - An extension to easily integrate https://github.com/dylibso/chicory[Chicory] in your Quarkus applications
 
 include::./includes/attributes.adoc[]
 
-TIP: Describe what the extension does here.
+== Features
+
+- Java resources and bytecode generation at build time, an actual replacement for the Chicory Maven plugin.
+
+- Handle the alignment between Quarkus and Chicory ASM dependencies, so that it is transparent from the application
+point of view.
+
+- Allows for an application to configure multiple Wasm modules.
+
+- Wasm modules can be either _statically configured_ or _dynamically loaded_ at runtime (e.g.: via a REST API upload call)
+
+- Automatic selection of the proper Chicory _compiler mode_, depending on the Quarkus runtime environment:
+
+ * In _quarkus:dev mode_: statically configured Wasm modules use _runtime compilation_, so that changes to the Wasm
+payload are picked up automatically. Dynamically loaded modules can be configured in order to use either
+_runtime compilation_ or the _interpreter_ mode.
+ * This makes it easy to iterate on both the Java and the Wasm sides without restarting anything — a really nice developer
+workflow.
+
+- In _production builds or native-image_: statically configured Wasm modules use _build-time compilation_ when the Wasm
+payload is fixed, while if the Wasm payload is loaded at runtime (e.g.: uploaded via a REST API call),
+_runtime compilation_ is used.
+the _build-time_ compiler is used, when the Wasm payload is fixed.
+
+- Statically configured Wasm modules that are backed up by a filesystem resource to the watched resources, for a
+rebuild to be triggered when the file is updated.
+
+== Examples
+
+=== Static configuration
+
+include::./{examples-dir}/static-config-example.adoc[]
 
 == Installation
 
@@ -21,7 +52,5 @@ For instance, with Maven, add the following dependency to your POM file:
 
 [[extension-configuration-reference]]
 == Extension Configuration Reference
-
-TIP: Remove this section if you don't have Quarkus configuration properties in your extension.
 
 include::includes/quarkus-chicory.adoc[leveloffset=+1, opts=optional]

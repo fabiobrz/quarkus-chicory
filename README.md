@@ -2,26 +2,13 @@
 
 [![Version](https://img.shields.io/maven-central/v/io.quarkiverse/quarkus-chicory?logo=apache-maven&style=flat-square)](https://central.sonatype.com/artifact/io.quarkiverse/quarkus-chicory-parent)
 
-## Welcome to Quarkiverse!
+## What's this?
 
-Congratulations and thank you for creating a new Quarkus extension project in Quarkiverse!
+Quarkus Chicory is a Quarkus extension that enables easy integration of [Chicory](https://github.com/dylibso/chicory) 
+with Quarkus applications.
 
-Feel free to replace this content with the proper description of your new project and necessary instructions how to use and contribute to it.
+It provides easy management of multiple Wasm modules, either statically configured or dynamically loaded, via 
+injectable beans.
 
-You can find the basic info, Quarkiverse policies and conventions in [the Quarkiverse wiki](https://github.com/quarkiverse/quarkiverse/wiki).
-
-In case you are creating a Quarkus extension project for the first time, please follow [Building My First Extension](https://quarkus.io/guides/building-my-first-extension) guide.
-
-Other useful articles related to Quarkus extension development can be found under the [Writing Extensions](https://quarkus.io/guides/#writing-extensions) guide category on the [Quarkus.io](https://quarkus.io) website.
-
-Thanks again, good luck and have fun!
-
-## Documentation
-
-The documentation for this extension should be maintained as part of this repository and it is stored in the `docs/` directory.
-
-The layout should follow the [Antora's Standard File and Directory Set](https://docs.antora.org/antora/2.3/standard-directories/).
-
-Once the docs are ready to be published, please open a PR including this repository in the [Quarkiverse Docs Antora playbook](https://github.com/quarkiverse/quarkiverse-docs/blob/main/antora-playbook.yml#L7). See an example [here](https://github.com/quarkiverse/quarkiverse-docs/pull/1)
-
-Your documentation will then be published to the <https://docs.quarkiverse.io/> website.
+Java bytecode generation, dynamic execution mode and transitive dependencies management are some of the features that 
+you'll find, see more [here](./docs/modules/ROOT/pages/index.adoc), or just get started with some quick highlights!
