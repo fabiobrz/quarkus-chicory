@@ -52,6 +52,7 @@ public class Wasm {
         protected final String name;
         protected final WasmModule wasmModule;
         private ExecutionMode executionMode;
+        private Function<Wasm, Instance> instanceProvider;
 
         protected Builder(final String name, final WasmModule wasmModule) {
             this.name = name;
@@ -64,7 +65,15 @@ public class Wasm {
             return this;
         }
 
+        public Builder withInstanceProvider(Function<Wasm, Instance> instanceProvider) {
+            this.instanceProvider = instanceProvider;
+            return this;
+        }
+
         public Wasm build() {
+            if (instanceProvider != null) {
+                return new Wasm(name, wasmModule, executionMode, instanceProvider);
+            }
             return new Wasm(name, wasmModule, executionMode);
         }
     }
