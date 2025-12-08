@@ -11,21 +11,23 @@ import com.dylibso.chicory.wasm.WasmModule;
 public class Wasm {
     private final String name;
     private final WasmModule module;
+    private final boolean isStatic;
     private final ExecutionMode executionMode;
-    private final Function<Wasm, Instance> instanceProvider;
 
     // Client code can only create via the Builder
     Wasm(final String name, final WasmModule module, final ExecutionMode executionMode) {
-        this(name, module, executionMode, new DynamicInstanceProvider());
-    }
-
-    // Client code can only create via the Builder
-    Wasm(final String name, final WasmModule module, final ExecutionMode executionMode,
-            final Function<Wasm, Instance> instanceProvider) {
         this.name = name;
         this.module = module;
         this.executionMode = executionMode;
-        this.instanceProvider = instanceProvider;
+        this.isStatic = false;
+    }
+
+    // Client code can only create via the Builder
+    Wasm(final String name, final WasmModule module) {
+        this.name = name;
+        this.module = module;
+        this.executionMode = ExecutionMode.Interpreter;
+        this.isStatic = true;
     }
 
     public String getName() {
@@ -36,12 +38,12 @@ public class Wasm {
         return module;
     }
 
-    public ExecutionMode getMode() {
-        return executionMode;
+    public boolean isStatic() {
+        return isStatic;
     }
 
-    public Instance chicoryInstance() {
-        return instanceProvider.apply(this);
+    public ExecutionMode getExecutionMode() {
+        return executionMode;
     }
 
     public static Wasm.Builder builder(final String name, final WasmModule wasmModule) {
@@ -65,15 +67,7 @@ public class Wasm {
             return this;
         }
 
-        public Builder withInstanceProvider(Function<Wasm, Instance> instanceProvider) {
-            this.instanceProvider = instanceProvider;
-            return this;
-        }
-
         public Wasm build() {
-            if (instanceProvider != null) {
-                return new Wasm(name, wasmModule, executionMode, instanceProvider);
-            }
             return new Wasm(name, wasmModule, executionMode);
         }
     }

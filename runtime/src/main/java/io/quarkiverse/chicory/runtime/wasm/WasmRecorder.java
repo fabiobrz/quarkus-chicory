@@ -1,7 +1,6 @@
 package io.quarkiverse.chicory.runtime.wasm;
 
-import java.util.ArrayList;
-import java.util.List;
+import jakarta.enterprise.inject.spi.CDI;
 
 import io.quarkiverse.chicory.runtime.ChicoryConfig;
 import io.quarkus.runtime.RuntimeValue;
@@ -12,30 +11,29 @@ import io.quarkus.runtime.annotations.Recorder;
  */
 @Recorder
 public class WasmRecorder {
-
-    final static List<Wasm> REGISTERED_WASMS = new ArrayList<>();
-
     /**
-     * Creates an instance of {@link Wasms} based on the application configuration and
-     * returns a runtime proxy.
-     *
-     * @param name The name of the configured Wasm module
-     * @param config The application configuration
-     * @return Returns a {@link RuntimeValue} referencing the configured {@link Wasms}.
+     * Gets the {@link CDI} current instance of the {@link Wasms} application scoped bean and populates it with
+     * configured Wasm modules.
      */
-    public RuntimeValue<Wasm> createWasm(final String name, final ChicoryConfig config) {
-        Wasm wasm = Wasms.createStatic(name, config.modules().get(name));
-        REGISTERED_WASMS.add(wasm);
-        return new RuntimeValue<>(wasm);
+    public void initializeWasms(ChicoryConfig config) {
+        // At runtime, this code looks up the *actual* CDI bean instance
+        // and calls the initialization method we defined above.
+        Wasms wasms = CDI.current()
+                .select(Wasms.class)
+                .get();
+        wasms.initialize(config);
     }
 
     /**
-     * Creates an instance of {@link Wasms} based on the application configuration and
-     * returns a runtime proxy.
+     * Creates an instance of {@link Wasm} based on the application configuration and returns a runtime proxy.
      *
-     * @return Returns a {@link RuntimeValue} referencing the configured {@link Wasms}.
+     * @param name The name of the configured Wasm module
+     * @return A {@link RuntimeValue} referencing the configured {@link Wasm}.
      */
-    public RuntimeValue<Wasms> createWasms() {
-        return new RuntimeValue<>(new Wasms(REGISTERED_WASMS));
+    public RuntimeValue<Wasm> createWasm(final String name) {
+        Wasms wasms = CDI.current()
+                .select(Wasms.class)
+                .get();
+        return new RuntimeValue<>(wasms.get(name));
     }
 }
