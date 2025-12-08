@@ -11,11 +11,11 @@ import io.quarkiverse.chicory.runtime.wasm.*;
 public class WasmResource {
 
     @Inject
-    Wasms wasms;
+    WasmQuarkusContextRegistry wasmQuarkusContextRegistry;
 
     @GET
     @Path("/all")
     public Response getAll() {
-        return Response.ok().entity(wasms.all()).build();
+        return Response.ok().entity(wasmQuarkusContextRegistry.all()).build();
     }
 }

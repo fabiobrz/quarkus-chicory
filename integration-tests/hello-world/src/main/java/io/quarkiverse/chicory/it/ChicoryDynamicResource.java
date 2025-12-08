@@ -20,56 +20,52 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 
-import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
-import jakarta.ws.rs.*;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
 import org.jboss.resteasy.reactive.RestForm;
 import org.jboss.resteasy.reactive.multipart.FileUpload;
 
+import com.dylibso.chicory.runtime.ByteArrayMemory;
 import com.dylibso.chicory.runtime.Instance;
 import com.dylibso.chicory.wasm.Parser;
+import com.dylibso.chicory.wasm.WasmModule;
 
 import io.quarkiverse.chicory.runtime.wasm.ExecutionMode;
-import io.quarkiverse.chicory.runtime.wasm.Wasm;
-import io.quarkiverse.chicory.runtime.wasm.Wasms;
+import io.quarkiverse.chicory.runtime.wasm.WasmQuarkusContext;
+import io.quarkiverse.chicory.runtime.wasm.WasmQuarkusContextRegistry;
 import io.quarkus.logging.Log;
 
-@Path("/chicory")
+@Path("/chicory/dynamic")
 @ApplicationScoped
-public class ChicoryResource {
+public class ChicoryDynamicResource {
 
     @Inject
-    @Named("operation-static")
-    Wasm wasm;
+    WasmQuarkusContextRegistry wasmQuarkusContextRegistry;
 
-    @Inject
-    Wasms wasms;
-
-    Instance staticModuleInstance;
+    Instance instance;
 
     private static final String DYNAMIC_WASM_MODULE_NAME_OPERATION = "operation-dynamic";
 
-    @PostConstruct
-    public void init() {
-        // The Wasm module is obtained by the name it was registered with,
-        // here it was loaded statically at build time statically, based on the application configuration.
-        // Therefore, we can rely on the injected named bean to obtain the Chicory Instance in @PostConstruct
-        staticModuleInstance = wasm.chicoryInstance();
-    }
-
     @GET
     public Response hello() {
-        var result = staticModuleInstance.export("operation").apply(41, 1);
-        return Response.ok("Hello chicory (static): " + result[0]).build();
+        if (instance == null) {
+            return Response.status(Response.Status.METHOD_NOT_ALLOWED)
+                    .entity("Instance not yet initialized. Use \"/dynamic/upload\" to upload a Wasm module and initialize an instance")
+                    .build();
+        }
+        var result = instance.export("operation").apply(41, 1);
+        return Response.ok("Hello chicory (dynamic): " + result[0]).build();
     }
 
     @POST
-    @Path("/dynamic/upload")
+    @Path("/upload")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public Response upload(@RestForm("module") FileUpload wasmModule,
             @RestForm("execution-mode") ExecutionMode executionMode) throws IOException {
@@ -77,30 +73,18 @@ public class ChicoryResource {
             if (wasmModuleInputStream.available() <= 0) {
                 throw new IllegalArgumentException("ERROR: Wasm module NOT uploaded 0");
             }
-            Wasm added = wasms.add(Wasm.builder(
-                    DYNAMIC_WASM_MODULE_NAME_OPERATION, Parser.parse(wasmModuleInputStream.readAllBytes()))
-                    .withMode(ExecutionMode.Interpreter)
-                    .build());
+            WasmModule parsedModule = Parser.parse(wasmModuleInputStream.readAllBytes());
+            WasmQuarkusContext added = wasmQuarkusContextRegistry
+                    .add(WasmQuarkusContext.builder(DYNAMIC_WASM_MODULE_NAME_OPERATION, parsedModule)
+                            .withMode(executionMode)
+                            .build());
             Log.info("Wasm module uploaded");
+            Instance.Builder builder = Instance.builder(parsedModule).withMachineFactory(added.getMachineFactory());
+            if (ExecutionMode.RuntimeCompiler.equals(executionMode)) {
+                builder.withMemoryFactory(ByteArrayMemory::new);
+            }
+            instance = builder.build();
             return Response.accepted(added).build();
         }
-    }
-
-    @GET
-    @Path("/dynamic")
-    public Response helloDynamic() {
-        // The Wasm module is obtained by the name it was registered with,
-        // here dynamically at runtime, hence we need to check for it to be actually present.
-        Wasm wasm = wasms.get(DYNAMIC_WASM_MODULE_NAME_OPERATION);
-        if (wasm == null) {
-            return Response.status(Response.Status.NOT_FOUND)
-                    .entity("Wasm module " + DYNAMIC_WASM_MODULE_NAME_OPERATION +
-                            "not found. Either you provided a wrong name, or it wasn't uploaded yet.")
-                    .build();
-        }
-        var instance = wasms.get("operation-dynamic").chicoryInstance();
-
-        var result = instance.export("operation").apply(41, 1);
-        return Response.ok("Hello chicory (dynamic): " + result[0]).build();
     }
 }

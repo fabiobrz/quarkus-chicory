@@ -11,18 +11,9 @@ import io.quarkiverse.chicory.runtime.wasm.ExecutionMode;
 import io.quarkus.test.junit.QuarkusTest;
 
 @QuarkusTest
-public class ChicoryResourceTest {
+public class ChicoryDynamicResourceTest {
 
     public static final String WASM_MODULE_NAME_OPERATION_DYNAMIC = "operation-dynamic";
-
-    @Test
-    public void testHelloEndpoint() {
-        given()
-                .when().get("/chicory")
-                .then()
-                .statusCode(200)
-                .body(is("Hello chicory (static): " + 42));
-    }
 
     @Test
     public void testDynamicHelloEndpoint() {

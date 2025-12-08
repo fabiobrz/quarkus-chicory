@@ -20,7 +20,7 @@ import io.smallrye.config.WithName;
  */
 @ConfigMapping(prefix = "quarkus.chicory")
 @ConfigRoot(phase = ConfigPhase.BUILD_AND_RUN_TIME_FIXED)
-public interface ChicoryConfig {
+public interface WasmQuarkusConfig {
 
     /**
      * A reference to the list of all configured Wasm modules.

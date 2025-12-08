@@ -20,7 +20,7 @@ Quarkus Chicory as a classpath resource, via the _wasm-resource_ property.
 The _name_ property is similar to the one define d by the Chicory Maven Plugin, and is used by Quarkus Chicory
 to configure the code generation process.
 
-The above configuration will let your application inject a `Wasm` bean, like this:
+The above configuration will let your application inject a `WasmQuarkusContext` bean, like this:
 
 [source,java]
 ----
@@ -30,7 +30,7 @@ public class ChicoryResource {
 
     @Inject
     @Named("operation-static")
-    Wasm wasm;
+    Wasm wasmQuarkusContext;
 
     Instance staticModuleInstance;
 
@@ -39,7 +39,7 @@ public class ChicoryResource {
         // The Wasm module is obtained by the name it was registered with,
         // here it was loaded statically at build time statically, based on the application configuration.
         // Therefore, we can rely on the injected named bean to obtain the Chicory Instance in @PostConstruct
-        staticModuleInstance = wasm.chicoryInstance();
+        staticModuleInstance = wasmQuarkusContext.chicoryInstance();
     }
 
     @GET
@@ -50,6 +50,6 @@ public class ChicoryResource {
 }
 ----
 
-As you can see, the injected `Wasm` bean can be used to retrieve a `com.dylibso.chicory.runtime.Instance` object,
+As you can see, the injected `WasmQuarkusContext` bean can be used to retrieve a `com.dylibso.chicory.runtime.Instance` object,
 which can be used to interact with the Wasm module code at runtime, either by leveraging the generated Java bytecode,
 or dynamically, like in the above case.

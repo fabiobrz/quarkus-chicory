@@ -8,9 +8,7 @@ import org.junit.jupiter.api.Test;
 import io.quarkus.test.junit.QuarkusTest;
 
 @QuarkusTest
-public class ChicoryResourceTest {
-
-    public static final String WASM_MODULE_NAME_OPERATION_DYNAMIC = "operation-dynamic";
+public class ChicoryResourceWithImportsTest {
 
     @Test
     public void testHelloEndpoint() {
@@ -20,5 +18,4 @@ public class ChicoryResourceTest {
                 .statusCode(200)
                 .body(is("Hello chicory: " + 42));
     }
-
 }
