@@ -1,0 +1,100 @@
+/*
+* Licensed to the Apache Software Foundation (ASF) under one or more
+* contributor license agreements.  See the NOTICE file distributed with
+* this work for additional information regarding copyright ownership.
+* The ASF licenses this file to You under the Apache License, Version 2.0
+* (the "License"); you may not use this file except in compliance with
+* the License.  You may obtain a copy of the License at
+*
+*      http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
+package io.quarkiverse.chicory.it;
+
+import java.io.InputStream;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.List;
+import java.util.function.Function;
+
+import jakarta.annotation.PostConstruct;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Response;
+
+import com.dylibso.chicory.runtime.ByteArrayMemory;
+import com.dylibso.chicory.runtime.HostFunction;
+import com.dylibso.chicory.runtime.ImportValues;
+import com.dylibso.chicory.runtime.Instance;
+import com.dylibso.chicory.wasm.Parser;
+import com.dylibso.chicory.wasm.types.FunctionType;
+import com.dylibso.chicory.wasm.types.ValType;
+
+import io.quarkiverse.chicory.runtime.MachineFactoryBinding;
+import io.quarkiverse.chicory.runtime.wasm.ExecutionMode;
+import io.quarkiverse.chicory.runtime.wasm.Wasm;
+import io.quarkiverse.chicory.runtime.wasm.Wasms;
+
+@Path("/chicory")
+@ApplicationScoped
+public class ChicoryResourceWithImports {
+
+    @Inject
+    Wasms wasms;
+
+    Wasm wasm;
+
+    @Inject
+    @MachineFactoryBinding("operation")
+    Function machineFactory;
+
+    Instance instance;
+
+    private static final Deque expectedStack = new ArrayDeque<Integer>(2);
+
+    @PostConstruct
+    public void init() {
+        wasm = wasms.get("operation");
+        // Here we load the Wasm payload from the classpath, but we could also rely on an injected "Wasm" bean, named as "operation"
+        InputStream resourceAsStream = ChicoryResourceWithImports.class.getClassLoader().getResourceAsStream("operation.wasm");
+        Instance.Builder builder = Instance
+                .builder(Parser.parse(resourceAsStream))
+                .withImportValues(ImportValues.builder()
+                        .addFunction(
+                                new HostFunction(
+                                        "env",
+                                        "host_log",
+                                        FunctionType.of(List.of(ValType.I32), List.of()),
+                                        (inst, args) -> {
+                                            var num = (int) args[0];
+                                            assert expectedStack.pop().equals(num);
+                                            System.out.println("Number: " + num);
+                                            return null;
+                                        }))
+                        .build())
+                .withMachineFactory(machineFactory);
+        if (wasm.getExecutionMode().equals(ExecutionMode.RuntimeCompiler)) {
+            builder.withMemoryFactory(ByteArrayMemory::new);
+        }
+        instance = builder.build();
+    }
+
+    @GET
+    public Response hello() {
+        expectedStack.add(41);
+        expectedStack.add(1);
+
+        var result = instance
+                .exports()
+                .function("operation")
+                .apply(41, 1);
+
+        return Response.ok("Hello chicory: " + result[0]).build();
+    }
+}

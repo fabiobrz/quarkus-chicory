@@ -5,46 +5,59 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import jakarta.enterprise.context.ApplicationScoped;
 
+import org.jboss.jandex.DotName;
+
 import com.dylibso.chicory.build.time.compiler.Config;
 import com.dylibso.chicory.build.time.compiler.Generator;
+import com.dylibso.chicory.compiler.internal.MachineFactory;
 
-import io.quarkiverse.chicory.runtime.*;
-import io.quarkiverse.chicory.runtime.wasm.*;
+import io.quarkiverse.chicory.deployment.items.GeneratedWasmClassesBuildItem;
+import io.quarkiverse.chicory.deployment.items.WasmRegistrationCompleted;
+import io.quarkiverse.chicory.runtime.ChicoryConfig;
+import io.quarkiverse.chicory.runtime.MachineFactoryBinding;
+import io.quarkiverse.chicory.runtime.wasm.WasmRecorder;
 import io.quarkus.arc.deployment.SyntheticBeanBuildItem;
 import io.quarkus.deployment.IsDevelopment;
-import io.quarkus.deployment.annotations.BuildProducer;
-import io.quarkus.deployment.annotations.BuildStep;
-import io.quarkus.deployment.annotations.ExecutionTime;
+import io.quarkus.deployment.annotations.*;
 import io.quarkus.deployment.annotations.Record;
-import io.quarkus.deployment.builditem.FeatureBuildItem;
-import io.quarkus.deployment.builditem.GeneratedClassBuildItem;
-import io.quarkus.deployment.builditem.GeneratedResourceBuildItem;
-import io.quarkus.deployment.builditem.HotDeploymentWatchedFileBuildItem;
+import io.quarkus.deployment.builditem.*;
 import io.quarkus.logging.Log;
 
 /**
- * The Quarkus Chicory deployment processor implements the following features:
+ * The Quarkus Chicory deployment processor provides the following features:
  * <ul>
- * <li>Provide a collection of injectable named beans, each representing a configured Wasm module</li>
- * <li>Provide an injectable bean that exposes all the loaded Wasm modules</li>
+ * <li>Produce an injectable bean that exposes all the loaded Wasm modules</li>
+ * <li>Produce a collection of injectable named beans, each representing a configured Wasm module</li>
+ * <li>Produce the logic to adjust the configuration of Chicory {@link com.dylibso.chicory.runtime.Instance.Builder} at
+ * runtime, based on the application configuration and execution environment.</li>
  * <li>Replace the Chicory Maven plugin functionality to generate bytecode, Wasm meta files and raw Java sources</li>
  * <li>Watch statically configured Wasm module files to trigger a rebuild in <i>dev mode</i></li>
  * </ul>
  * <p>
- * A build step leverages the Chicory {@link Generator} to generate the bytecode, the meta Wasm files and the raw Java
- * sources for each configured Wasm module, then two subsequent build steps process the output to provide Quarkus the
- * related classes and resources that will be built as part of the application, thus replacing the Chicory Maven plugin
- * functionality.
+ * The first build step is responsible for loading all the configured Wasm modules into an application scoped bean
+ * which also tracks those added dynamically at runtime.
  * <br>
- * A separate build step creates a collection of application scoped named beans, each representing a statically
- * configured Wasm module, plus an application scoped bean that stores all loaded Wasm modules
- * data, both configured at build time, and dynamically added at runtime.
+ * Then, a separate build step creates a collection of application scoped named beans, each representing a statically
+ * configured Wasm module, which can be injected into client applications.
+ * <br>
+ * Another build step produces the components that will manipulate Chicory APIs at runtime via bytecode transformation.
+ * <br>
+ * An additional build step leverages the Chicory {@link Generator} to generate the bytecode, the meta Wasm files and
+ * the raw Java sources for each configured Wasm module, then two subsequent build steps process the output to provide
+ * Quarkus the related classes and resources that will be built as part of the application, thus replacing the Chicory
+ * Maven plugin functionality.
  * <br>
  * Finally, a build step is responsible for adding all the statically configured Wasm files to the collectin of watched
  * resources.
@@ -59,10 +72,29 @@ class ChicoryProcessor {
         return new FeatureBuildItem(FEATURE);
     }
 
+    private static final DotName INSTANCE_TYPE = DotName.createSimple("com.dylibso.chicory.runtime.Instance");
+    private static final DotName CONFIG_ANNOTATION = DotName
+            .createSimple("io.quarkiverse.chicory.runtime.ChicoryInstance");
+
     /**
-     * Creates a collection of application scoped named beans, each representing a statically
-     * configured Wasm module, plus an application scoped bean that stores all loaded Wasm modules
-     * data, both configured at build time, and dynamically added at runtime.
+     * Loads configured Wasm modules to initialize the application scoped
+     * {@link io.quarkiverse.chicory.runtime.wasm.Wasms} instances.
+     *
+     * @param recorder The {@link WasmRecorder} instance that provides the logic to produce the runtime instances of the
+     *        required beans
+     * @param config The application configuration, storing all the configured modules.
+     */
+    @BuildStep
+    @Record(ExecutionTime.RUNTIME_INIT)
+    @Produce(WasmRegistrationCompleted.class)
+    void loadWasms(WasmRecorder recorder, ChicoryConfig config) {
+        // Populate the registry with configured Wasm modules
+        recorder.initializeWasms(config);
+    }
+
+    /**
+     * Creates a collection of application scoped named beans, each capable of returning a {@link MachineFactory}
+     * for a statically configured Wasm module.
      *
      * @param syntheticBeans The {@link BuildProducer} instance that creates the synthetic beans
      * @param recorder The {@link WasmRecorder} instance that provides the logic to produce the runtime instances of the
@@ -71,25 +103,22 @@ class ChicoryProcessor {
      */
     @BuildStep
     @Record(ExecutionTime.RUNTIME_INIT)
-    void registerStaticWasm(BuildProducer<SyntheticBeanBuildItem> syntheticBeans, WasmRecorder recorder,
+    @Consume(WasmRegistrationCompleted.class)
+    void registerMachineFactoryBeans(BuildProducer<SyntheticBeanBuildItem> syntheticBeans, WasmRecorder recorder,
             ChicoryConfig config) {
-        // Produce synthetic Wasm module named beans
+        // Produce synthetic machineFactory beans for related Wasm modules
         for (Map.Entry<String, ChicoryConfig.ModuleConfig> configEntry : config.modules().entrySet()) {
             syntheticBeans.produce(
-                    SyntheticBeanBuildItem.configure(Wasm.class)
+                    SyntheticBeanBuildItem.configure(Function.class)
                             .scope(ApplicationScoped.class)
-                            .runtimeValue(recorder.createWasm(configEntry.getKey(), config))
+                            .runtimeValue(recorder.createMachineFactory(configEntry.getKey()))
                             .setRuntimeInit()
+                            .addQualifier().annotation(MachineFactoryBinding.class).addValue(
+                                    "value", configEntry.getKey())
+                            .done()
                             .named(configEntry.getKey())
                             .done());
         }
-        // Produce the Wasm collection bean
-        syntheticBeans.produce(
-                SyntheticBeanBuildItem.configure(Wasms.class)
-                        .scope(ApplicationScoped.class)
-                        .runtimeValue(recorder.createWasms())
-                        .setRuntimeInit()
-                        .done());
     }
 
     /**

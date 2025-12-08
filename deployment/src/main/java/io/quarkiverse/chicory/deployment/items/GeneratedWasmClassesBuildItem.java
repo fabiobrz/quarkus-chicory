@@ -1,4 +1,4 @@
-package io.quarkiverse.chicory.deployment;
+package io.quarkiverse.chicory.deployment.items;
 
 import java.nio.file.Path;
 import java.util.List;
