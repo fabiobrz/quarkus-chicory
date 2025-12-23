@@ -17,6 +17,7 @@ import java.util.stream.Stream;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import org.eclipse.microprofile.config.ConfigProvider;
+import org.jboss.logging.Logger;
 
 import com.dylibso.chicory.build.time.compiler.Config;
 import com.dylibso.chicory.build.time.compiler.Generator;
@@ -38,7 +39,7 @@ import io.quarkus.deployment.builditem.FeatureBuildItem;
 import io.quarkus.deployment.builditem.GeneratedClassBuildItem;
 import io.quarkus.deployment.builditem.GeneratedResourceBuildItem;
 import io.quarkus.deployment.builditem.HotDeploymentWatchedFileBuildItem;
-import io.quarkus.logging.Log;
+import io.quarkus.deployment.builditem.nativeimage.ReflectiveClassBuildItem;
 
 /**
  * The Quarkus Chicory deployment processor provides the following features:
@@ -63,6 +64,7 @@ import io.quarkus.logging.Log;
 class QuarkusWasmProcessor {
 
     private static final String FEATURE = "chicory";
+    private static final Logger LOG = Logger.getLogger(QuarkusWasmProcessor.class);
 
     @BuildStep
     FeatureBuildItem feature() {
@@ -119,11 +121,12 @@ class QuarkusWasmProcessor {
             final String key = entry.getKey();
             final WasmQuarkusConfig.ModuleConfig moduleConfig = entry.getValue();
             final String name = moduleConfig.name();
+            final String[] splitClassName = name.split("\\.");
+            final String baseClassSimpleName = splitClassName[splitClassName.length - 1];
             Path wasmFile = null;
             if (moduleConfig.wasmFile().isPresent()) {
                 wasmFile = moduleConfig.wasmFile().get();
             } else if (moduleConfig.wasmResource().isPresent()) {
-                // TODO - would this work in native mode? (NOT.)
                 String wasmResource = moduleConfig.wasmResource().get();
                 wasmFile = Files.createTempFile("chicory", "wasm");
                 try (InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream(wasmResource)) {
@@ -137,7 +140,7 @@ class QuarkusWasmProcessor {
                             String.format("Cannot create Wasm module resource (%s) temporary file", wasmResource), e);
                 }
             } else {
-                Log.info(
+                LOG.info(
                         "Neither a resource name nor a file path is defined. Skipping code generation for Wasm module " + key);
             }
             // generate when a Wasm file exists
@@ -147,7 +150,9 @@ class QuarkusWasmProcessor {
                 final Path targetSourceFolder = config.generator().targetSourceFolder();
                 final Optional<List<Integer>> interpretedFunctionsConfig = moduleConfig.compiler().interpretedFunctions();
 
-                Log.info("Generating bytecode for " + key + " from " + wasmFile);
+                LOG.info("Generating bytecode and resources into " + targetClassFolder.toFile().getAbsolutePath() + " for "
+                        + key + " from "
+                        + wasmFile);
                 final Config generatorConfig = Config.builder()
                         .withWasmFile(wasmFile)
                         .withName(name)
@@ -169,30 +174,33 @@ class QuarkusWasmProcessor {
                 Path generatedMetaWasm = null;
                 Path generatedJava = null;
                 // N .class files
-                try (Stream<Path> pathStream = Files.walk(targetClassFolder)) {
+                LOG.debug("Tracking the generated .class files in " + targetClassFolder.toAbsolutePath());
+                try (Stream<Path> pathStream = Files.walk(targetClassFolder.toAbsolutePath())) {
                     ArrayList<Path> files = pathStream
-                            .filter(p -> p.toString().endsWith(".class"))
+                            .filter(p -> p.toString().contains("/" + baseClassSimpleName) && p.toString().endsWith(".class"))
                             .collect(Collectors.toCollection(ArrayList::new));
                     for (Path file : files) {
-                        Log.debug("Tracking the generated .class file: " + file);
+                        LOG.debug("Tracking the generated .class file: " + file);
                         generatedClasses.add(file);
                     }
                 }
                 // 1 .meta Wasm file
-                try (Stream<Path> pathStream = Files.walk(targetWasmFolder)) {
+                LOG.debug("Tracking the generated .meta file in " + targetWasmFolder.toFile().getAbsolutePath());
+                try (Stream<Path> pathStream = Files.walk(targetWasmFolder.toAbsolutePath())) {
                     generatedMetaWasm = pathStream
                             .filter(p -> p.toString().endsWith(".meta"))
                             .findFirst()
                             .orElseThrow(() -> new IllegalStateException(".meta Wasm file not found"));
-                    Log.debug("Tracking the generated .meta file: " + generatedMetaWasm);
+                    LOG.debug("Tracking the generated .meta file: " + generatedMetaWasm);
                 }
                 // 1 .java source file
-                try (Stream<Path> pathStream = Files.walk(targetSourceFolder)) {
+                LOG.debug("Tracking the generated .java file in " + targetSourceFolder.toFile().getAbsolutePath());
+                try (Stream<Path> pathStream = Files.walk(targetSourceFolder.toAbsolutePath())) {
                     generatedJava = pathStream
                             .filter(p -> p.toString().endsWith(".java"))
                             .findFirst()
                             .orElseThrow(() -> new IllegalStateException(".java Wasm file not found"));
-                    Log.debug("Tracking the generated .java file: " + generatedJava);
+                    LOG.debug("Tracking the generated .java file: " + generatedJava);
                 }
                 result.add(new GeneratedWasmCodeBuildItem(name, generatedClasses, generatedMetaWasm, generatedJava));
             }
@@ -210,22 +218,30 @@ class QuarkusWasmProcessor {
      * @return A collection of {@link GeneratedClassBuildItem} items, referencing the generated {@code .class} files.
      */
     @BuildStep
-    public List<GeneratedClassBuildItem> collectGeneratedClasses(List<GeneratedWasmCodeBuildItem> generatedWasmCodeBuildItems)
+    public void collectGeneratedClasses(List<GeneratedWasmCodeBuildItem> generatedWasmCodeBuildItems,
+            BuildProducer<GeneratedClassBuildItem> generatedClassBuildItemBuildProducer,
+            BuildProducer<ReflectiveClassBuildItem> reflectiveClassBuildItemBuildProducer)
             throws IOException {
-
-        final List<GeneratedClassBuildItem> generatedClasses = new ArrayList<>();
 
         for (GeneratedWasmCodeBuildItem buildItem : generatedWasmCodeBuildItems) {
             final String name = buildItem.getName();
-            Log.info("Collecting generated .class files for " + name);
-
+            LOG.info("Collecting generated .class files for " + name);
+            final String classPackage = name.substring(0, name.lastIndexOf('.'));
             for (Path file : buildItem.getClasses()) {
-                final String className = name + file.getFileName().toString().replace(".java", "");
-                Log.debug("Adding .class file: " + className);
-                generatedClasses.add(new GeneratedClassBuildItem(true, className, Files.readAllBytes(file)));
+                final String className = classPackage + "." + file.getFileName().toString().replace(".class", "");
+                LOG.info("Adding .class file: " + className);
+                // register as an application class
+                generatedClassBuildItemBuildProducer.produce(
+                        new GeneratedClassBuildItem(true, className, Files.readAllBytes(file)));
+                // register for reflection
+                reflectiveClassBuildItemBuildProducer.produce(
+                        ReflectiveClassBuildItem.builder(className)
+                                .constructors()
+                                .methods()
+                                .fields()
+                                .build());
             }
         }
-        return generatedClasses;
     }
 
     /**
@@ -246,7 +262,7 @@ class QuarkusWasmProcessor {
 
         for (GeneratedWasmCodeBuildItem buildItem : generatedWasmCodeBuildItems) {
             final Path metaWasm = buildItem.getMetaWasm();
-            Log.info("Collecting the generated .meta file: " + metaWasm + " for " + buildItem.getName());
+            LOG.info("Collecting the generated .meta file: " + metaWasm + " for " + buildItem.getName());
             generatedMetaWasm.add(new GeneratedResourceBuildItem(metaWasm.getFileName().toString(),
                     Files.readAllBytes(metaWasm)));
         }
@@ -271,7 +287,7 @@ class QuarkusWasmProcessor {
 
         for (GeneratedWasmCodeBuildItem buildItem : generatedWasmCodeBuildItems) {
             final Path javaSources = buildItem.getJavaSources();
-            Log.info("Collecting the generated .java file: " + javaSources + " for " + buildItem.getName());
+            LOG.info("Collecting the generated .java file: " + javaSources + " for " + buildItem.getName());
             generatedJavaSources.add(new GeneratedResourceBuildItem(javaSources.getFileName().toString(),
                     Files.readAllBytes(javaSources)));
         }
@@ -295,7 +311,7 @@ class QuarkusWasmProcessor {
             final Path wasmFile;
             if (moduleConfig.wasmFile().isPresent()) {
                 wasmFile = moduleConfig.wasmFile().get();
-                Log.info("Adding " + wasmFile + " to the collection of watched resources (dev mode)");
+                LOG.info("Adding " + wasmFile + " to the collection of watched resources (dev mode)");
                 new HotDeploymentWatchedFileBuildItem(wasmFile.toAbsolutePath().toString());
             }
         }
