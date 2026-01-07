@@ -16,6 +16,9 @@
 */
 package io.quarkiverse.chicory.it;
 
+import java.io.IOException;
+import java.io.InputStream;
+
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -40,16 +43,20 @@ public class ChicoryStaticResource {
     Instance instance;
 
     @PostConstruct
-    public void init() {
-        // get the Wasm module payload _statically_ from the classpath, as an application resource.
-        WasmModule wasmModule = Parser.parse(
-                ChicoryStaticResource.class.getClassLoader().getResourceAsStream("operation.wasm"));
-        // The Wasm module is obtained by the name it was registered with,
-        // here it was loaded statically at build time statically, based on the application configuration.
-        // Therefore, we can rely on the injected named bean to obtain the Chicory MachineFactory in @PostConstruct...
-        Instance.Builder builder = Instance.builder(wasmModule)
-                .withMachineFactory(wasmQuarkusContext.getMachineFactory());
-        instance = builder.build();
+    public void init() throws IOException {
+        // get the Wasm module payload from the classpath, as an application resource
+        final String wasmFileName = "operation.wasm";
+        try (InputStream is = ChicoryStaticResource.class.getClassLoader().getResourceAsStream(wasmFileName)) {
+            if (is == null) {
+                throw new IllegalStateException("Resource " + wasmFileName + " not found!");
+            }
+            WasmModule wasmModule = Parser.parse(is);
+            // The Wasm module is obtained by the name it was registered with,
+            // therefore, we can rely on the injected named bean to obtain the Chicory MachineFactory in @PostConstruct
+            Instance.Builder builder = Instance.builder(wasmModule)
+                    .withMachineFactory(wasmQuarkusContext.getMachineFactory());
+            instance = builder.build();
+        }
     }
 
     @GET

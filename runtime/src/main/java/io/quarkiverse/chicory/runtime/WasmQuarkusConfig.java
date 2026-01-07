@@ -116,6 +116,7 @@ public interface WasmQuarkusConfig {
         /**
          * The target source folder to generate the Machine implementation
          */
+        @WithName("target-source-folder")
         @WithDefault("target/generated-sources/chicory-compiler")
         Path targetSourceFolder();
 

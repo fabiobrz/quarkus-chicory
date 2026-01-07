@@ -13,12 +13,6 @@
     <artifactId>quarkus-chicory-integration-tests-hello-world-imports</artifactId>
     <name>Quarkus Chicory - Integration Test - Hello World Imports</name>
 
-    <properties>
-        <!-- Dynamically set the operation.wasm module path, when it's meant to be taken as local to the Maven project
-        -->
-        <wasm-module-path.operation>${project.basedir}</wasm-module-path.operation>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>io.quarkus</groupId>

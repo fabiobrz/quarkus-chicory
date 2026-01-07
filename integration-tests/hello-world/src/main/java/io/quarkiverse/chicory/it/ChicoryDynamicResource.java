@@ -35,7 +35,6 @@ import org.jboss.resteasy.reactive.multipart.FileUpload;
 
 import com.dylibso.chicory.runtime.Instance;
 import com.dylibso.chicory.wasm.Parser;
-import com.dylibso.chicory.wasm.WasmModule;
 
 import io.quarkiverse.chicory.runtime.wasm.ExecutionMode;
 import io.quarkiverse.chicory.runtime.wasm.WasmQuarkusContext;
@@ -69,13 +68,12 @@ public class ChicoryDynamicResource {
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public Response upload(@RestForm("module") FileUpload wasmModule,
             @RestForm("execution-mode") ExecutionMode executionMode) throws IOException {
-        try (final InputStream wasmModuleInputStream = Files.newInputStream(wasmModule.uploadedFile())) {
-            if (wasmModuleInputStream.available() <= 0) {
+        try (final InputStream is = Files.newInputStream(wasmModule.uploadedFile())) {
+            if (is.available() <= 0) {
                 throw new IllegalArgumentException("ERROR: Wasm module NOT uploaded 0");
             }
-            WasmModule parsedModule = Parser.parse(wasmModuleInputStream.readAllBytes());
             Log.info("Wasm module uploaded, execution mode is " + executionMode);
-            instance = Instance.builder(parsedModule)
+            instance = Instance.builder(Parser.parse(is.readAllBytes()))
                     .withMachineFactory(wasmQuarkusContext.getMachineFactory())
                     .build();
             return Response.accepted(wasmQuarkusContext).build();

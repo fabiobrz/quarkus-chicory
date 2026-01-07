@@ -3,11 +3,12 @@ package io.quarkiverse.chicory.runtime.wasm;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import org.jboss.logging.Logger;
+
 import com.dylibso.chicory.runtime.Instance;
 import com.dylibso.chicory.runtime.Machine;
 
 import io.quarkiverse.chicory.runtime.WasmQuarkusConfig;
-import io.quarkus.logging.Log;
 import io.quarkus.runtime.LaunchMode;
 import io.quarkus.runtime.RuntimeValue;
 import io.quarkus.runtime.annotations.Recorder;
@@ -17,6 +18,9 @@ import io.quarkus.runtime.annotations.Recorder;
  */
 @Recorder
 public class WasmQuarkusContextRecorder {
+
+    private static final Logger LOG = Logger.getLogger(WasmQuarkusContextRecorder.class);
+
     /**
      * Creates a {@link WasmQuarkusContext} instance based on a configured Wasm module, and returns it as a
      * runtime value.
@@ -27,7 +31,7 @@ public class WasmQuarkusContextRecorder {
      */
     public RuntimeValue<?> createContext(final String key, final WasmQuarkusConfig config, final boolean isNativePackageType) {
         WasmQuarkusConfig.ModuleConfig moduleConfig = config.modules().get(key);
-        Log.info("A configured Wasm module " + key + " will be created");
+        LOG.info("A configured Wasm module " + key + " will be created");
         final boolean isDynamic = !(moduleConfig.wasmFile().isPresent() || moduleConfig.wasmResource().isPresent());
         // default to runtime compilation
         ExecutionMode actualExecutionMode = ExecutionMode.RuntimeCompiler;
@@ -37,19 +41,19 @@ public class WasmQuarkusContextRecorder {
             // wasm payload is not configured, and is meant to be loaded dynamically, therefore only Interpreter
             // execution mode can be used in native package type execution (everything is compiled AoT)
             if (isNativePackageType) {
-                Log.warn("No payload is configured for Wasm module " + key +
+                LOG.warn("No payload is configured for Wasm module " + key +
                         ", and native image is being built. Execution mode will fall back to " + ExecutionMode.Interpreter);
                 actualExecutionMode = ExecutionMode.Interpreter;
             } else {
                 // ... otherwise fallback to the runtime compiler (default), as the payload is loaded dynamically (and
                 // the user cannot set it)
-                Log.info("No payload is configured for Wasm module " + key + ", execution mode is " + actualExecutionMode);
+                LOG.info("No payload is configured for Wasm module " + key + ", execution mode is " + actualExecutionMode);
             }
         } else {
             // Wasm payload is configured statically, and execution mode as well both for native vs. JVM package
             // type
             actualExecutionMode = moduleConfig.compiler().executionMode();
-            Log.info("Payload is configured for Wasm module " + key + ", execution mode is " + actualExecutionMode);
+            LOG.info("Payload is configured for Wasm module " + key + ", execution mode is " + actualExecutionMode);
         }
         Supplier<Function<Instance, Machine>> machineFactoryProvider = (LaunchMode.current() == LaunchMode.NORMAL
                 || LaunchMode.current() == LaunchMode.RUN)

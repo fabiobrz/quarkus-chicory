@@ -16,6 +16,7 @@
 */
 package io.quarkiverse.chicory.it;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -28,7 +29,6 @@ import jakarta.inject.Named;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Response;
 
-import com.dylibso.chicory.runtime.ByteArrayMemory;
 import com.dylibso.chicory.runtime.HostFunction;
 import com.dylibso.chicory.runtime.ImportValues;
 import com.dylibso.chicory.runtime.Instance;
@@ -36,7 +36,6 @@ import com.dylibso.chicory.wasm.Parser;
 import com.dylibso.chicory.wasm.types.FunctionType;
 import com.dylibso.chicory.wasm.types.ValType;
 
-import io.quarkiverse.chicory.runtime.wasm.ExecutionMode;
 import io.quarkiverse.chicory.runtime.wasm.WasmQuarkusContext;
 
 @Path("/chicory")
@@ -52,29 +51,31 @@ public class ChicoryResourceWithImports {
     private static final Deque expectedStack = new ArrayDeque<Integer>(2);
 
     @PostConstruct
-    public void init() {
-        // Here we load the Wasm payload from the classpath, but we could also rely on an injected "Wasm" bean, named as "operation"
-        InputStream resourceAsStream = ChicoryResourceWithImports.class.getClassLoader().getResourceAsStream("operation.wasm");
-        Instance.Builder builder = Instance
-                .builder(Parser.parse(resourceAsStream))
-                .withImportValues(ImportValues.builder()
-                        .addFunction(
-                                new HostFunction(
-                                        "env",
-                                        "host_log",
-                                        FunctionType.of(List.of(ValType.I32), List.of()),
-                                        (inst, args) -> {
-                                            var num = (int) args[0];
-                                            assert expectedStack.pop().equals(num);
-                                            System.out.println("Number: " + num);
-                                            return null;
-                                        }))
-                        .build())
-                .withMachineFactory(wasmQuarkusContext.getMachineFactory());
-        if (wasmQuarkusContext.getExecutionMode().equals(ExecutionMode.RuntimeCompiler)) {
-            builder.withMemoryFactory(ByteArrayMemory::new);
+    public void init() throws IOException {
+        // get the Wasm module payload from the classpath, as an application resource
+        final String wasmFileName = "operation.wasm";
+        try (InputStream is = ChicoryResourceWithImports.class.getClassLoader().getResourceAsStream(wasmFileName)) {
+            if (is == null) {
+                throw new IllegalStateException("Resource " + wasmFileName + " not found!");
+            }
+            Instance.Builder builder = Instance
+                    .builder(Parser.parse(is))
+                    .withImportValues(ImportValues.builder()
+                            .addFunction(
+                                    new HostFunction(
+                                            "env",
+                                            "host_log",
+                                            FunctionType.of(List.of(ValType.I32), List.of()),
+                                            (inst, args) -> {
+                                                var num = (int) args[0];
+                                                assert expectedStack.pop().equals(num);
+                                                System.out.println("Number: " + num);
+                                                return null;
+                                            }))
+                            .build())
+                    .withMachineFactory(wasmQuarkusContext.getMachineFactory());
+            instance = builder.build();
         }
-        instance = builder.build();
     }
 
     @GET
