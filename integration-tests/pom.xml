@@ -19,6 +19,7 @@
         <module>hello-world</module>
         <module>hello-world-imports</module>
         <module>go-cel</module>
+        <module>go-qrcode</module>
     </modules>
 
     <build>
