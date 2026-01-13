@@ -56,6 +56,11 @@
                 <artifactId>runtime</artifactId>
                 <version>${dylibso.version}</version>
             </dependency>
+            <dependency>
+                <groupId>com.dylibso.chicory</groupId>
+                <artifactId>wasi</artifactId>
+                <version>${dylibso.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
