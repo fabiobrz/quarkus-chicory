@@ -18,7 +18,6 @@ package io.quarkiverse.chicory.it;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 import jakarta.annotation.PostConstruct;
@@ -39,7 +38,6 @@ import com.dylibso.chicory.runtime.Memory;
 import com.dylibso.chicory.runtime.Store;
 import com.dylibso.chicory.wasi.WasiOptions;
 import com.dylibso.chicory.wasi.WasiPreview1;
-import com.dylibso.chicory.wasm.Parser;
 import com.dylibso.chicory.wasm.WasmModule;
 
 import io.quarkiverse.chicory.runtime.wasm.WasmQuarkusContext;
@@ -60,54 +58,51 @@ public class ChicoryGoCelResource {
 
     @PostConstruct
     public void init() throws IOException {
-        final String wasmFileName = "go-cel.wasm";
-        try (InputStream is = ChicoryGoCelResource.class.getClassLoader().getResourceAsStream(wasmFileName)) {
-            if (is == null) {
-                throw new IllegalStateException("Resource " + wasmFileName + " not found!");
+        WasmModule wasmModule = wasmQuarkusContext.getWasmModule();
+        if (wasmModule == null) {
+            throw new IllegalStateException("Wasm module " + wasmQuarkusContext.getName() + " not found!");
+        }
+
+        // Create WASI support
+        ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+        ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+
+        WasiOptions options = WasiOptions.builder()
+                .withStdout(stdout)
+                .withStderr(stderr)
+                .build();
+
+        WasiPreview1 wasi = WasiPreview1.builder()
+                .withOptions(options)
+                .build();
+
+        Store store = new Store().addFunction(wasi.toHostFunctions());
+
+        // WasmQuarkusContext provides Instance with MachineFactory dynamically
+        instance = Instance.builder(wasmModule)
+                .withMachineFactory(wasmQuarkusContext.getMachineFactory())
+                .withImportValues(store.toImportValues())
+                // Don't auto-run _start(), we'll call it manually
+                .withStart(false)
+                .build();
+
+        // Get exported functions BEFORE calling _start
+        malloc = instance.export("malloc");
+        free = instance.export("free");
+        evalPolicy = instance.export("evalPolicy");
+        memory = instance.memory();
+
+        // Initialize Go runtime by calling _start()
+        // This runs main() which exits, but we catch the expected WasiExitException
+        try {
+            ExportFunction start = instance.export("_start");
+            start.apply();
+        } catch (com.dylibso.chicory.wasi.WasiExitException e) {
+            // Expected - Go main() exits after completing
+            if (e.exitCode() != 0) {
+                throw new RuntimeException("Go runtime initialization failed with exit code: " + e.exitCode());
             }
-            WasmModule wasmModule = Parser.parse(is);
-
-            // Create WASI support
-            ByteArrayOutputStream stdout = new ByteArrayOutputStream();
-            ByteArrayOutputStream stderr = new ByteArrayOutputStream();
-
-            WasiOptions options = WasiOptions.builder()
-                    .withStdout(stdout)
-                    .withStderr(stderr)
-                    .build();
-
-            WasiPreview1 wasi = WasiPreview1.builder()
-                    .withOptions(options)
-                    .build();
-
-            Store store = new Store().addFunction(wasi.toHostFunctions());
-
-            // WasmQuarkusContext provides Instance with MachineFactory dynamically
-            instance = Instance.builder(wasmModule)
-                    .withMachineFactory(wasmQuarkusContext.getMachineFactory())
-                    .withImportValues(store.toImportValues())
-                    // Don't auto-run _start(), we'll call it manually
-                    .withStart(false)
-                    .build();
-
-            // Get exported functions BEFORE calling _start
-            malloc = instance.export("malloc");
-            free = instance.export("free");
-            evalPolicy = instance.export("evalPolicy");
-            memory = instance.memory();
-
-            // Initialize Go runtime by calling _start()
-            // This runs main() which exits, but we catch the expected WasiExitException
-            try {
-                ExportFunction start = instance.export("_start");
-                start.apply();
-            } catch (com.dylibso.chicory.wasi.WasiExitException e) {
-                // Expected - Go main() exits after completing
-                if (e.exitCode() != 0) {
-                    throw new RuntimeException("Go runtime initialization failed with exit code: " + e.exitCode());
-                }
-                // Exit code 0 is success - runtime is now initialized and exported functions are ready
-            }
+            // Exit code 0 is success - runtime is now initialized and exported functions are ready
         }
     }
 

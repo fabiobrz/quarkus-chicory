@@ -1,10 +1,8 @@
 package io.quarkiverse.chicory.deployment;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -25,6 +23,7 @@ import com.dylibso.chicory.build.time.compiler.Generator;
 import io.quarkiverse.chicory.deployment.items.GeneratedWasmCodeBuildItem;
 import io.quarkiverse.chicory.deployment.items.WasmContextRegistrationCompleted;
 import io.quarkiverse.chicory.runtime.WasmQuarkusConfig;
+import io.quarkiverse.chicory.runtime.WasmQuarkusUtils;
 import io.quarkiverse.chicory.runtime.wasm.WasmQuarkusContext;
 import io.quarkiverse.chicory.runtime.wasm.WasmQuarkusContextRecorder;
 import io.quarkus.arc.deployment.SyntheticBeanBuildItem;
@@ -39,6 +38,8 @@ import io.quarkus.deployment.builditem.FeatureBuildItem;
 import io.quarkus.deployment.builditem.GeneratedClassBuildItem;
 import io.quarkus.deployment.builditem.GeneratedResourceBuildItem;
 import io.quarkus.deployment.builditem.HotDeploymentWatchedFileBuildItem;
+import io.quarkus.deployment.builditem.nativeimage.NativeImageResourceBuildItem;
+import io.quarkus.deployment.builditem.nativeimage.NativeImageResourcePatternsBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.ReflectiveClassBuildItem;
 
 /**
@@ -113,7 +114,9 @@ class QuarkusWasmProcessor {
      */
     @BuildStep
     @Consume(WasmContextRegistrationCompleted.class)
-    public List<GeneratedWasmCodeBuildItem> generate(WasmQuarkusConfig config) throws IOException {
+    public List<GeneratedWasmCodeBuildItem> generate(WasmQuarkusConfig config,
+            BuildProducer<NativeImageResourcePatternsBuildItem> nativeImageResourcePatternsBuildItemBuildProducer)
+            throws IOException {
 
         final List<GeneratedWasmCodeBuildItem> result = new ArrayList<>();
 
@@ -121,24 +124,11 @@ class QuarkusWasmProcessor {
             final String key = entry.getKey();
             final WasmQuarkusConfig.ModuleConfig moduleConfig = entry.getValue();
             final String name = moduleConfig.name();
-            final String[] splitClassName = name.split("\\.");
-            final String baseClassSimpleName = splitClassName[splitClassName.length - 1];
             Path wasmFile = null;
             if (moduleConfig.wasmFile().isPresent()) {
                 wasmFile = moduleConfig.wasmFile().get();
             } else if (moduleConfig.wasmResource().isPresent()) {
-                String wasmResource = moduleConfig.wasmResource().get();
-                wasmFile = Files.createTempFile("chicory", "wasm");
-                try (InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream(wasmResource)) {
-                    if (is != null) {
-                        Files.copy(is, wasmFile, StandardCopyOption.REPLACE_EXISTING);
-                    } else {
-                        throw new IllegalStateException("Cannot access Wasm module resource: " + wasmResource);
-                    }
-                } catch (IOException e) {
-                    throw new IllegalStateException(
-                            String.format("Cannot create Wasm module resource (%s) temporary file", wasmResource), e);
-                }
+                wasmFile = WasmQuarkusUtils.getWasmPathFromResource(moduleConfig.wasmResource().get());
             } else {
                 LOG.info(
                         "Neither a resource name nor a file path is defined. Skipping code generation for Wasm module " + key);
@@ -177,7 +167,8 @@ class QuarkusWasmProcessor {
                 LOG.debug("Tracking the generated .class files in " + targetClassFolder.toAbsolutePath());
                 try (Stream<Path> pathStream = Files.walk(targetClassFolder.toAbsolutePath())) {
                     ArrayList<Path> files = pathStream
-                            .filter(p -> p.toString().contains("/" + baseClassSimpleName) && p.toString().endsWith(".class"))
+                            .filter(p -> p.toString().contains("/" + WasmQuarkusUtils.getWasmModuleClassName(name))
+                                    && p.toString().endsWith(".class"))
                             .collect(Collectors.toCollection(ArrayList::new));
                     for (Path file : files) {
                         LOG.debug("Tracking the generated .class file: " + file);
@@ -205,17 +196,26 @@ class QuarkusWasmProcessor {
                 result.add(new GeneratedWasmCodeBuildItem(name, generatedClasses, generatedMetaWasm, generatedJava));
             }
         }
+        // register *.wasm files for Native mode (although they are not be used...)
+        if (config.modules().entrySet().stream().anyMatch(m -> m.getValue().wasmFile().isPresent())) {
+            nativeImageResourcePatternsBuildItemBuildProducer.produce(NativeImageResourcePatternsBuildItem.builder()
+                    .includeGlobs("**/*.wasm")
+                    .build());
+        }
         return result;
     }
 
     /**
-     * A build step that consumes the build items generated by {@link #generate(WasmQuarkusConfig)} to collect a list of
-     * {@link GeneratedClassBuildItem} referencing the generated {@code .class} files.
+     * A build step that consumes the build items generated by {@link #generate(WasmQuarkusConfig, BuildProducer)}
+     * to collect a list of {@link GeneratedClassBuildItem} referencing the generated {@code .class} files.
      *
      * @param generatedWasmCodeBuildItems The list of {@link GeneratedWasmCodeBuildItem} items that will be used
      *        to collect all the generated {@code .class} files
      *
-     * @return A collection of {@link GeneratedClassBuildItem} items, referencing the generated {@code .class} files.
+     * @param generatedClassBuildItemBuildProducer The producer that produces instances of
+     *        {@link GeneratedClassBuildItem} items, referencing the generated {@code .class} files
+     * @param reflectiveClassBuildItemBuildProducer The producer that produces instances of
+     *        {@link ReflectiveClassBuildItem} items, referencing the generated {@code .class} files
      */
     @BuildStep
     public void collectGeneratedClasses(List<GeneratedWasmCodeBuildItem> generatedWasmCodeBuildItems,
@@ -245,33 +245,38 @@ class QuarkusWasmProcessor {
     }
 
     /**
-     * A build step that consumes the build items generated by {@link #generate(WasmQuarkusConfig)} to collect a list of
-     * {@link GeneratedResourceBuildItem} referencing the generated {@code .meta} files.
+     * A build step that consumes the build items generated by {@link #generate(WasmQuarkusConfig, BuildProducer)}
+     * to collect a list of {@link GeneratedResourceBuildItem} referencing the generated {@code .meta} files.
      *
      * @param generatedWasmCodeBuildItems The list of {@link GeneratedWasmCodeBuildItem} items that will be used
      *        to collect all the generated {@code .meta} files
-     *
-     * @return A collection of {@link GeneratedResourceBuildItem} items, referencing the generated {@code .meta} files.
+     * @param generatedResourceBuildItemBuildProducer The producer that will generate {@link GeneratedResourceBuildItem}
+     *        instances, referencing the generated {@code .meta} files.
      */
     @BuildStep
-    public List<GeneratedResourceBuildItem> collectGeneratedMetaWasm(
-            List<GeneratedWasmCodeBuildItem> generatedWasmCodeBuildItems)
+    public void collectGeneratedMetaWasm(
+            List<GeneratedWasmCodeBuildItem> generatedWasmCodeBuildItems,
+            BuildProducer<GeneratedResourceBuildItem> generatedResourceBuildItemBuildProducer,
+            BuildProducer<NativeImageResourceBuildItem> nativeImageResourceBuildItemBuildProducer)
             throws IOException {
 
-        final List<GeneratedResourceBuildItem> generatedMetaWasm = new ArrayList<>();
-
         for (GeneratedWasmCodeBuildItem buildItem : generatedWasmCodeBuildItems) {
+            final String name = buildItem.getName();
             final Path metaWasm = buildItem.getMetaWasm();
-            LOG.info("Collecting the generated .meta file: " + metaWasm + " for " + buildItem.getName());
-            generatedMetaWasm.add(new GeneratedResourceBuildItem(metaWasm.getFileName().toString(),
+            final String resourcePath = WasmQuarkusUtils.getWasmModuleClassPath(name);
+            final String resource = resourcePath + "/" + metaWasm.getFileName();
+            LOG.info("Collecting the generated .meta file: " + metaWasm + " for " + buildItem.getName() + ", as a resource "
+                    + resource);
+            generatedResourceBuildItemBuildProducer.produce(new GeneratedResourceBuildItem(resource,
                     Files.readAllBytes(metaWasm)));
+            // register meta Wasm for Native mode
+            nativeImageResourceBuildItemBuildProducer.produce(new NativeImageResourceBuildItem(resource));
         }
-        return generatedMetaWasm;
     }
 
     /**
-     * A build step that consumes the build items generated by {@link #generate(WasmQuarkusConfig)} to collect a list of
-     * {@link GeneratedResourceBuildItem} referencing the generated {@code .java} files.
+     * A build step that consumes the build items generated by {@link #generate(WasmQuarkusConfig, BuildProducer)}
+     * to collect a list of {@link GeneratedResourceBuildItem} referencing the generated {@code .java} files.
      *
      * @param generatedWasmCodeBuildItems The list of {@link GeneratedWasmCodeBuildItem} items that will be used
      *        to collect all the generated {@code .java} files
