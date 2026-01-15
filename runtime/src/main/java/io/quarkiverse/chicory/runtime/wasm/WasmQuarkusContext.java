@@ -39,7 +39,7 @@ public class WasmQuarkusContext {
         // native image vs. JVM package type
         if (isDynamic) {
             // wasm payload is not configured, and is meant to be loaded dynamically, therefore only Interpreter
-            // execution mode can be used in native package type execution (everything is compiled AoT)
+            // execution mode can be used in native package type execution (everything is compiled at build time)
             if (isNativePackageType) {
                 LOG.warn("No payload is configured for Wasm module " + moduleKey +
                         ", and native image is being built. Execution mode will fall back to " + ExecutionMode.Interpreter);
