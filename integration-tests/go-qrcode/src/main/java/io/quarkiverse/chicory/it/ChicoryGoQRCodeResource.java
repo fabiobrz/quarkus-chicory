@@ -18,7 +18,6 @@ package io.quarkiverse.chicory.it;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 import jakarta.annotation.PostConstruct;
@@ -39,7 +38,6 @@ import com.dylibso.chicory.runtime.Memory;
 import com.dylibso.chicory.runtime.Store;
 import com.dylibso.chicory.wasi.WasiOptions;
 import com.dylibso.chicory.wasi.WasiPreview1;
-import com.dylibso.chicory.wasm.Parser;
 import com.dylibso.chicory.wasm.WasmModule;
 
 import io.quarkiverse.chicory.runtime.wasm.WasmQuarkusContext;
@@ -61,42 +59,40 @@ public class ChicoryGoQRCodeResource {
 
     @PostConstruct
     public void init() throws IOException {
-        final String wasmFileName = "qr-generator.wasm";
-        try (InputStream is = ChicoryGoQRCodeResource.class.getClassLoader().getResourceAsStream(wasmFileName)) {
-            if (is == null) {
-                throw new IllegalStateException("Resource " + wasmFileName + " not found!");
-            }
-            WasmModule wasmModule = Parser.parse(is);
-
-            // STDOUT and STDERR streams to be used by WasiOptions
-            ByteArrayOutputStream stdout = new ByteArrayOutputStream();
-            ByteArrayOutputStream stderr = new ByteArrayOutputStream();
-
-            WasiOptions options = WasiOptions.builder()
-                    .withStdout(stdout)
-                    .withStderr(stderr)
-                    .build();
-
-            // Create WASI with options
-            WasiPreview1 wasi = WasiPreview1.builder()
-                    .withOptions(options)
-                    .build();
-
-            // Store manages WASI host functions
-            Store store = new Store().addFunction(wasi.toHostFunctions());
-
-            // Instance.builder combines both Store imports AND MachineFactory
-            instance = Instance.builder(wasmModule)
-                    .withMachineFactory(wasmQuarkusContext.getMachineFactory())
-                    .withImportValues(store.toImportValues())
-                    .build();
-
-            // Get exported functions
-            malloc = instance.export("malloc");
-            free = instance.export("free");
-            generateQR = instance.export("generateQR");
-            memory = instance.memory();
+        WasmModule wasmModule = wasmQuarkusContext.getWasmModule();
+        if (wasmModule == null) {
+            throw new IllegalStateException("Wasm module " + wasmQuarkusContext.getName() + " not found!");
         }
+
+        // STDOUT and STDERR streams to be used by WasiOptions
+        ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+        ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+
+        WasiOptions options = WasiOptions.builder()
+                .withStdout(stdout)
+                .withStderr(stderr)
+                .build();
+
+        // Create WASI with options
+        WasiPreview1 wasi = WasiPreview1.builder()
+                .withOptions(options)
+                .build();
+
+        // Store manages WASI host functions
+        Store store = new Store().addFunction(wasi.toHostFunctions());
+
+        // Instance.builder combines both Store imports AND MachineFactory
+        instance = Instance.builder(wasmModule)
+                .withMachineFactory(wasmQuarkusContext.getMachineFactory())
+                .withImportValues(store.toImportValues())
+                .build();
+
+        // Get exported functions
+        malloc = instance.export("malloc");
+        free = instance.export("free");
+        generateQR = instance.export("generateQR");
+        memory = instance.memory();
+
     }
 
     @GET

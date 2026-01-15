@@ -17,7 +17,6 @@
 package io.quarkiverse.chicory.it;
 
 import java.io.IOException;
-import java.io.InputStream;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -27,7 +26,6 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Response;
 
 import com.dylibso.chicory.runtime.Instance;
-import com.dylibso.chicory.wasm.Parser;
 import com.dylibso.chicory.wasm.WasmModule;
 
 import io.quarkiverse.chicory.runtime.wasm.WasmQuarkusContext;
@@ -44,19 +42,15 @@ public class ChicoryStaticResource {
 
     @PostConstruct
     public void init() throws IOException {
-        // get the Wasm module payload from the classpath, as an application resource
-        final String wasmFileName = "operation.wasm";
-        try (InputStream is = ChicoryStaticResource.class.getClassLoader().getResourceAsStream(wasmFileName)) {
-            if (is == null) {
-                throw new IllegalStateException("Resource " + wasmFileName + " not found!");
-            }
-            WasmModule wasmModule = Parser.parse(is);
-            // The Wasm module is obtained by the name it was registered with,
-            // therefore, we can rely on the injected named bean to obtain the Chicory MachineFactory in @PostConstruct
-            Instance.Builder builder = Instance.builder(wasmModule)
-                    .withMachineFactory(wasmQuarkusContext.getMachineFactory());
-            instance = builder.build();
+        WasmModule wasmModule = wasmQuarkusContext.getWasmModule();
+        if (wasmModule == null) {
+            throw new IllegalStateException("Wasm module " + wasmQuarkusContext.getName() + " not found!");
         }
+        // The Wasm module is obtained by the name it was registered with,
+        // therefore, we can rely on the injected named bean to obtain the Chicory MachineFactory in @PostConstruct
+        Instance.Builder builder = Instance.builder(wasmModule)
+                .withMachineFactory(wasmQuarkusContext.getMachineFactory());
+        instance = builder.build();
     }
 
     @GET

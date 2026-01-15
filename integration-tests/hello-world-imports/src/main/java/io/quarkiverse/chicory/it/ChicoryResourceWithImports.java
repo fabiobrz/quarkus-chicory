@@ -17,7 +17,6 @@
 package io.quarkiverse.chicory.it;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
@@ -32,7 +31,7 @@ import jakarta.ws.rs.core.Response;
 import com.dylibso.chicory.runtime.HostFunction;
 import com.dylibso.chicory.runtime.ImportValues;
 import com.dylibso.chicory.runtime.Instance;
-import com.dylibso.chicory.wasm.Parser;
+import com.dylibso.chicory.wasm.WasmModule;
 import com.dylibso.chicory.wasm.types.FunctionType;
 import com.dylibso.chicory.wasm.types.ValType;
 
@@ -52,30 +51,27 @@ public class ChicoryResourceWithImports {
 
     @PostConstruct
     public void init() throws IOException {
-        // get the Wasm module payload from the classpath, as an application resource
-        final String wasmFileName = "operation.wasm";
-        try (InputStream is = ChicoryResourceWithImports.class.getClassLoader().getResourceAsStream(wasmFileName)) {
-            if (is == null) {
-                throw new IllegalStateException("Resource " + wasmFileName + " not found!");
-            }
-            Instance.Builder builder = Instance
-                    .builder(Parser.parse(is))
-                    .withImportValues(ImportValues.builder()
-                            .addFunction(
-                                    new HostFunction(
-                                            "env",
-                                            "host_log",
-                                            FunctionType.of(List.of(ValType.I32), List.of()),
-                                            (inst, args) -> {
-                                                var num = (int) args[0];
-                                                assert expectedStack.pop().equals(num);
-                                                System.out.println("Number: " + num);
-                                                return null;
-                                            }))
-                            .build())
-                    .withMachineFactory(wasmQuarkusContext.getMachineFactory());
-            instance = builder.build();
+        WasmModule wasmModule = wasmQuarkusContext.getWasmModule();
+        if (wasmModule == null) {
+            throw new IllegalStateException("Wasm module " + wasmQuarkusContext.getName() + " not found!");
         }
+        Instance.Builder builder = Instance
+                .builder(wasmModule)
+                .withImportValues(ImportValues.builder()
+                        .addFunction(
+                                new HostFunction(
+                                        "env",
+                                        "host_log",
+                                        FunctionType.of(List.of(ValType.I32), List.of()),
+                                        (inst, args) -> {
+                                            var num = (int) args[0];
+                                            assert expectedStack.pop().equals(num);
+                                            System.out.println("Number: " + num);
+                                            return null;
+                                        }))
+                        .build())
+                .withMachineFactory(wasmQuarkusContext.getMachineFactory());
+        instance = builder.build();
     }
 
     @GET
