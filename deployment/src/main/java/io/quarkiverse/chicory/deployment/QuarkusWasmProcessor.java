@@ -41,6 +41,7 @@ import io.quarkus.deployment.builditem.HotDeploymentWatchedFileBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.NativeImageResourceBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.NativeImageResourcePatternsBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.ReflectiveClassBuildItem;
+import io.quarkus.deployment.pkg.builditem.OutputTargetBuildItem;
 
 /**
  * The Quarkus Chicory deployment processor provides the following features:
@@ -114,11 +115,15 @@ class QuarkusWasmProcessor {
      */
     @BuildStep
     @Consume(WasmContextRegistrationCompleted.class)
-    public List<GeneratedWasmCodeBuildItem> generate(WasmQuarkusConfig config,
+    public List<GeneratedWasmCodeBuildItem> generate(WasmQuarkusConfig config, OutputTargetBuildItem outputTarget,
             BuildProducer<NativeImageResourcePatternsBuildItem> nativeImageResourcePatternsBuildItemBuildProducer)
             throws IOException {
 
         final List<GeneratedWasmCodeBuildItem> result = new ArrayList<>();
+
+        final Path targetDirectory = outputTarget.getOutputDirectory();
+        final Path classesDir = targetDirectory.resolve("classes");
+        final Path generatedSourcesDir = targetDirectory.resolve("generated-sources");
 
         for (Map.Entry<String, WasmQuarkusConfig.ModuleConfig> entry : config.modules().entrySet()) {
             final String key = entry.getKey();
@@ -135,20 +140,17 @@ class QuarkusWasmProcessor {
             }
             // generate when a Wasm file exists
             if (wasmFile != null) {
-                final Path targetClassFolder = config.generator().targetClassFolder();
-                final Path targetWasmFolder = config.generator().targetWasmFolder();
-                final Path targetSourceFolder = config.generator().targetSourceFolder();
                 final Optional<List<Integer>> interpretedFunctionsConfig = moduleConfig.compiler().interpretedFunctions();
 
-                LOG.info("Generating bytecode and resources into " + targetClassFolder.toFile().getAbsolutePath() + " for "
+                LOG.info("Generating bytecode and resources into " + classesDir.toFile().getAbsolutePath() + " for "
                         + key + " from "
                         + wasmFile);
                 final Config generatorConfig = Config.builder()
                         .withWasmFile(wasmFile)
                         .withName(name)
-                        .withTargetClassFolder(targetClassFolder)
-                        .withTargetWasmFolder(targetWasmFolder)
-                        .withTargetSourceFolder(targetSourceFolder)
+                        .withTargetClassFolder(classesDir)
+                        .withTargetWasmFolder(classesDir)
+                        .withTargetSourceFolder(generatedSourcesDir)
                         .withInterpreterFallback(moduleConfig.compiler().interpreterFallback())
                         .withInterpretedFunctions(
                                 interpretedFunctionsConfig.isPresent() ? new HashSet<>(interpretedFunctionsConfig.get())
@@ -164,8 +166,8 @@ class QuarkusWasmProcessor {
                 Path generatedMetaWasm = null;
                 Path generatedJava = null;
                 // N .class files
-                LOG.debug("Tracking the generated .class files in " + targetClassFolder.toAbsolutePath());
-                try (Stream<Path> pathStream = Files.walk(targetClassFolder.toAbsolutePath())) {
+                LOG.debug("Tracking the generated .class files in " + classesDir.toAbsolutePath());
+                try (Stream<Path> pathStream = Files.walk(classesDir.toAbsolutePath())) {
                     ArrayList<Path> files = pathStream
                             .filter(p -> p.toString().contains("/" + WasmQuarkusUtils.getWasmModuleClassName(name))
                                     && p.toString().endsWith(".class"))
@@ -176,8 +178,8 @@ class QuarkusWasmProcessor {
                     }
                 }
                 // 1 .meta Wasm file
-                LOG.debug("Tracking the generated .meta file in " + targetWasmFolder.toFile().getAbsolutePath());
-                try (Stream<Path> pathStream = Files.walk(targetWasmFolder.toAbsolutePath())) {
+                LOG.debug("Tracking the generated .meta file in " + classesDir.toFile().getAbsolutePath());
+                try (Stream<Path> pathStream = Files.walk(classesDir.toAbsolutePath())) {
                     generatedMetaWasm = pathStream
                             .filter(p -> p.toString().endsWith(".meta"))
                             .findFirst()
@@ -185,8 +187,8 @@ class QuarkusWasmProcessor {
                     LOG.debug("Tracking the generated .meta file: " + generatedMetaWasm);
                 }
                 // 1 .java source file
-                LOG.debug("Tracking the generated .java file in " + targetSourceFolder.toFile().getAbsolutePath());
-                try (Stream<Path> pathStream = Files.walk(targetSourceFolder.toAbsolutePath())) {
+                LOG.debug("Tracking the generated .java file in " + generatedSourcesDir.toFile().getAbsolutePath());
+                try (Stream<Path> pathStream = Files.walk(generatedSourcesDir.toAbsolutePath())) {
                     generatedJava = pathStream
                             .filter(p -> p.toString().endsWith(".java"))
                             .findFirst()
@@ -206,7 +208,8 @@ class QuarkusWasmProcessor {
     }
 
     /**
-     * A build step that consumes the build items generated by {@link #generate(WasmQuarkusConfig, BuildProducer)}
+     * A build step that consumes the build items generated by
+     * {@link #generate(WasmQuarkusConfig, OutputTargetBuildItem, BuildProducer)}
      * to collect a list of {@link GeneratedClassBuildItem} referencing the generated {@code .class} files.
      *
      * @param generatedWasmCodeBuildItems The list of {@link GeneratedWasmCodeBuildItem} items that will be used
@@ -245,7 +248,8 @@ class QuarkusWasmProcessor {
     }
 
     /**
-     * A build step that consumes the build items generated by {@link #generate(WasmQuarkusConfig, BuildProducer)}
+     * A build step that consumes the build items generated by
+     * {@link #generate(WasmQuarkusConfig, OutputTargetBuildItem, BuildProducer)}
      * to collect a list of {@link GeneratedResourceBuildItem} referencing the generated {@code .meta} files.
      *
      * @param generatedWasmCodeBuildItems The list of {@link GeneratedWasmCodeBuildItem} items that will be used
@@ -275,7 +279,8 @@ class QuarkusWasmProcessor {
     }
 
     /**
-     * A build step that consumes the build items generated by {@link #generate(WasmQuarkusConfig, BuildProducer)}
+     * A build step that consumes the build items generated by
+     * {@link #generate(WasmQuarkusConfig, OutputTargetBuildItem, BuildProducer)}
      * to collect a list of {@link GeneratedResourceBuildItem} referencing the generated {@code .java} files.
      *
      * @param generatedWasmCodeBuildItems The list of {@link GeneratedWasmCodeBuildItem} items that will be used

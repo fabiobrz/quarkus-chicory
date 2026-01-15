@@ -93,38 +93,4 @@ public interface WasmQuarkusConfig {
             Optional<List<Integer>> interpretedFunctions();
         }
     }
-
-    /**
-     * A reference to the configuration for the Chicory generator execution.
-     *
-     * @return The {@link GeneratorConfig} instance representing the configuration that will be provided to the
-     *         Chicory code generation process.
-     */
-    GeneratorConfig generator();
-
-    /**
-     * Inner interface representing the Chicory generator configuration.
-     */
-    interface GeneratorConfig {
-        /**
-         * The target folder to generate classes
-         */
-        @WithName("target-class-folder")
-        @WithDefault("target/generated-resources/chicory-compiler")
-        Path targetClassFolder();
-
-        /**
-         * The target source folder to generate the Machine implementation
-         */
-        @WithName("target-source-folder")
-        @WithDefault("target/generated-sources/chicory-compiler")
-        Path targetSourceFolder();
-
-        /**
-         * The target wasm folder to generate the stripped meta wasm module
-         */
-        @WithName("target-wasm-folder")
-        @WithDefault("target/generated-resources/chicory-compiler")
-        Path targetWasmFolder();
-    }
 }
