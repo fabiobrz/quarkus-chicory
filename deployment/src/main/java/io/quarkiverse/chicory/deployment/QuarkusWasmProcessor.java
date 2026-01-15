@@ -59,7 +59,7 @@ import io.quarkus.deployment.pkg.builditem.OutputTargetBuildItem;
  * Quarkus the related classes and resources that will be built as part of the application, thus replacing the Chicory
  * Maven plugin functionality.
  * <br>
- * Finally, a build step is responsible for adding all the statically configured Wasm files to the collectin of watched
+ * Finally, a build step is responsible for adding all the statically configured Wasm files to the collection of watched
  * resources.
  * </p>
  */
