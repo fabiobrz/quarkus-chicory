@@ -2,6 +2,7 @@ package io.quarkiverse.chicory.runtime.wasm;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.function.Function;
 
 import org.jboss.logging.Logger;
@@ -26,10 +27,11 @@ public class WasmQuarkusContext {
     private final WasmQuarkusConfig.ModuleConfig moduleConfig;
     private final boolean isNativePackageType;
     private final boolean isDynamic;
+    private final String projectBaseDir;
 
     // Client code can't create
     WasmQuarkusContext(final String moduleKey, final WasmQuarkusConfig.ModuleConfig moduleConfig,
-            final boolean isNativePackageType) {
+            final boolean isNativePackageType, final String projectBaseDir) {
         isDynamic = !(moduleConfig.wasmFile().isPresent() || moduleConfig.wasmResource().isPresent());
         // default to runtime compilation
         ExecutionMode actualExecutionMode = ExecutionMode.RuntimeCompiler;
@@ -58,6 +60,7 @@ public class WasmQuarkusContext {
         this.executionMode = actualExecutionMode;
         this.moduleConfig = moduleConfig;
         this.isNativePackageType = isNativePackageType;
+        this.projectBaseDir = projectBaseDir;
     }
 
     public String getName() {
@@ -105,7 +108,7 @@ public class WasmQuarkusContext {
         } else {
             // otherwise let's use the Wasm payload itself
             if (moduleConfig.wasmFile().isPresent()) {
-                return Parser.parse(moduleConfig.wasmFile().get());
+                return Parser.parse(moduleConfig.wasmFileAbsolutePath(Path.of(projectBaseDir)));
             } else {
                 return Parser.parse(WasmQuarkusUtils.getWasmPathFromResource(moduleConfig.wasmResource().get()));
             }

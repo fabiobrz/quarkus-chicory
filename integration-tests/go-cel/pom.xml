@@ -40,30 +40,6 @@
     </dependencies>
 
     <build>
-        <!-- When Maven project properties are used in order to dynamically set the application configuration
-         (e.g.: paths that are local to a Maven project rather than a given filesystem location) then resources
-         must be filtered, and all of them MUST be listed.
-         In other words, the whole following resources configuration can be removed if your application is configuring
-         the Wasm modules paths just as filesystem location, e.g.:
-         quarkus.chicory.modules.operation.wasm-file=${user.home}/wasm/operation.wasm
-         -->
-        <resources>
-            <!-- Here the application.properties resource is managed, which requires filtering -->
-            <resource>
-                <directory>${project.basedir}/src/main/resources</directory>
-                <includes>
-                    <include>application.properties</include>
-                </includes>
-                <filtering>true</filtering>
-            </resource>
-            <!-- Here the go-cel.wasm resource is managed, which DOES NOT require filtering -->
-            <resource>
-                <directory>${project.basedir}/src/main/resources/wasm</directory>
-                <includes>
-                    <include>go-cel.wasm</include>
-                </includes>
-            </resource>
-        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

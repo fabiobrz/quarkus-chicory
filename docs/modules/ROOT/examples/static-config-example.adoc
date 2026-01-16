@@ -5,7 +5,7 @@ Wasm module used by a Quarkus application:
 [source,properties]
 ----
 # The Wasm module payload is configurable either as a file
-##quarkus.chicory.modules.operation.wasm-file=${project.basedir}/src/main/resources/wasm/operation.wasm
+##quarkus.chicory.modules.operation.wasm-file=src/main/resources/wasm/operation.wasm
 # Or as a classpath resource, but file the file based configuration takes precedence
 quarkus.chicory.modules.operation-static.wasm-resource=operation.wasm
 
