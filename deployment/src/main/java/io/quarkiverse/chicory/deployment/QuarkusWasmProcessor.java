@@ -86,7 +86,7 @@ class QuarkusWasmProcessor {
     @Record(ExecutionTime.RUNTIME_INIT)
     @Produce(WasmContextRegistrationCompleted.class)
     void registerWasmContextBeans(BuildProducer<SyntheticBeanBuildItem> syntheticBeans, WasmQuarkusContextRecorder recorder,
-            WasmQuarkusConfig config) {
+            WasmQuarkusConfig config, OutputTargetBuildItem outputTarget) {
         // Produce synthetic WasmQuarkusContext beans for related Wasm modules
         for (Map.Entry<String, WasmQuarkusConfig.ModuleConfig> moduleConfigEntry : config.modules().entrySet()) {
             final String key = moduleConfigEntry.getKey();
@@ -96,7 +96,8 @@ class QuarkusWasmProcessor {
             syntheticBeans.produce(
                     SyntheticBeanBuildItem.configure(WasmQuarkusContext.class)
                             .scope(ApplicationScoped.class)
-                            .runtimeValue(recorder.createContext(key, config, isNativePackageType))
+                            .runtimeValue(recorder.createContext(key, config, isNativePackageType,
+                                    outputTarget.getOutputDirectory().getParent().toString()))
                             .setRuntimeInit()
                             .named(key)
                             .done());
@@ -115,7 +116,8 @@ class QuarkusWasmProcessor {
      */
     @BuildStep
     @Consume(WasmContextRegistrationCompleted.class)
-    public List<GeneratedWasmCodeBuildItem> generate(WasmQuarkusConfig config, OutputTargetBuildItem outputTarget,
+    public List<GeneratedWasmCodeBuildItem> generate(WasmQuarkusConfig config,
+            OutputTargetBuildItem outputTarget,
             BuildProducer<NativeImageResourcePatternsBuildItem> nativeImageResourcePatternsBuildItemBuildProducer)
             throws IOException {
 
@@ -131,7 +133,7 @@ class QuarkusWasmProcessor {
             final String name = moduleConfig.name();
             Path wasmFile = null;
             if (moduleConfig.wasmFile().isPresent()) {
-                wasmFile = moduleConfig.wasmFile().get();
+                wasmFile = moduleConfig.wasmFileAbsolutePath(targetDirectory.getParent());
             } else if (moduleConfig.wasmResource().isPresent()) {
                 wasmFile = WasmQuarkusUtils.getWasmPathFromResource(moduleConfig.wasmResource().get());
             } else {
@@ -312,7 +314,8 @@ class QuarkusWasmProcessor {
      *         Wasm module files that will be watched in dev mode.
      */
     @BuildStep(onlyIf = IsDevelopment.class)
-    List<HotDeploymentWatchedFileBuildItem> addWatchedResources(WasmQuarkusConfig wasmQuarkusConfig) {
+    List<HotDeploymentWatchedFileBuildItem> addWatchedResources(WasmQuarkusConfig wasmQuarkusConfig,
+            OutputTargetBuildItem outputTarget) {
 
         List<HotDeploymentWatchedFileBuildItem> result = new ArrayList<>();
 
@@ -320,7 +323,7 @@ class QuarkusWasmProcessor {
             final WasmQuarkusConfig.ModuleConfig moduleConfig = entry.getValue();
             final Path wasmFile;
             if (moduleConfig.wasmFile().isPresent()) {
-                wasmFile = moduleConfig.wasmFile().get();
+                wasmFile = moduleConfig.wasmFileAbsolutePath(outputTarget.getOutputDirectory().getParent());
                 LOG.info("Adding " + wasmFile + " to the collection of watched resources (dev mode)");
                 new HotDeploymentWatchedFileBuildItem(wasmFile.toAbsolutePath().toString());
             }

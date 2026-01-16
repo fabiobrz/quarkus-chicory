@@ -39,7 +39,18 @@ public interface WasmQuarkusConfig {
          * @return A {@link File} instance representing a configured Wasm module which is backed by a static file.
          */
         @WithName("wasm-file")
-        Optional<Path> wasmFile();
+        Optional<String> wasmFile();
+
+        default Path wasmFileAbsolutePath(final Path baseDir) {
+            if (wasmFile().isEmpty()) {
+                throw new IllegalArgumentException("wasm-file not set");
+            }
+            final Path wasmFile = Path.of(wasmFile().get());
+            if (wasmFile.isAbsolute()) {
+                return wasmFile;
+            }
+            return baseDir.toAbsolutePath().resolve(wasmFile).normalize();
+        }
 
         /**
          * The Wasm module to be used. If {@link #wasmFile()} is defined too, it has precedence over this.
@@ -83,7 +94,7 @@ public interface WasmQuarkusConfig {
              * The action to take if the compiler needs to use the interpreter because a function is too big
              */
             @WithName("interpreter-fallback")
-            @WithDefault("FAIL")
+            @WithDefault("WARN")
             InterpreterFallback interpreterFallback();
 
             /**

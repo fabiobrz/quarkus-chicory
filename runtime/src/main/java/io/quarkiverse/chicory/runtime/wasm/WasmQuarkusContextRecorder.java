@@ -22,10 +22,11 @@ public class WasmQuarkusContextRecorder {
      * @param config The application configuration, storing all the configured Wasm modules.
      * @return A {@link RuntimeValue} referencing the configured {@link WasmQuarkusContext}.
      */
-    public RuntimeValue<?> createContext(final String key, final WasmQuarkusConfig config, final boolean isNativePackageType) {
+    public RuntimeValue<?> createContext(final String key, final WasmQuarkusConfig config, final boolean isNativePackageType,
+            final String projectBaseDir) {
         WasmQuarkusConfig.ModuleConfig moduleConfig = config.modules().get(key);
         LOG.info("A configured Wasm module " + key + " will be created");
-        WasmQuarkusContext wasmQuarkusContext = new WasmQuarkusContext(key, moduleConfig, isNativePackageType);
+        WasmQuarkusContext wasmQuarkusContext = new WasmQuarkusContext(key, moduleConfig, isNativePackageType, projectBaseDir);
         return new RuntimeValue<>(wasmQuarkusContext);
     }
 }
