@@ -59,7 +59,7 @@ import io.quarkus.deployment.pkg.builditem.OutputTargetBuildItem;
  * Quarkus the related classes and resources that will be built as part of the application, thus replacing the Chicory
  * Maven plugin functionality.
  * <br>
- * Finally, a build step is responsible for adding all the statically configured Wasm files to the collectin of watched
+ * Finally, a build step is responsible for adding all the statically configured Wasm files to the collection of watched
  * resources.
  * </p>
  */
@@ -108,6 +108,8 @@ class QuarkusWasmProcessor {
      * Use the Chicory build time compiler {@link Generator} to generate bytecode from configured {@code Wasm} modules.
      *
      * @param config The application configuration, storing all the configured modules.
+     * @param outputTarget The build output target providing the directory where generated files will be written.
+     * @param nativeImageResourcePatternsBuildItemBuildProducer The producer for registering native image resource patterns.
      * @return A collection of {@link GeneratedWasmCodeBuildItem} items, each of them storing the name of the
      *         generated Wasm module, a list of paths referencing the generated {@code .class} files,
      *         a reference to the generated {@code .meta} Wasm file, and a reference to the generated {@code .java}
@@ -310,7 +312,8 @@ class QuarkusWasmProcessor {
      * Only in dev mode, the configured Wasm modules that define a filesystem path are added to the watched resources.
      *
      * @param wasmQuarkusConfig The application configuration, storing all the configured modules.
-     * @return A list of {@link HotDeploymentWatchedFileBuildItem}, representing the collection f
+     * @param outputTarget The build output target providing the base directory for resolving file paths.
+     * @return A list of {@link HotDeploymentWatchedFileBuildItem}, representing the collection of
      *         Wasm module files that will be watched in dev mode.
      */
     @BuildStep(onlyIf = IsDevelopment.class)
@@ -325,7 +328,7 @@ class QuarkusWasmProcessor {
             if (moduleConfig.wasmFile().isPresent()) {
                 wasmFile = moduleConfig.wasmFileAbsolutePath(outputTarget.getOutputDirectory().getParent());
                 LOG.info("Adding " + wasmFile + " to the collection of watched resources (dev mode)");
-                new HotDeploymentWatchedFileBuildItem(wasmFile.toAbsolutePath().toString());
+                result.add(new HotDeploymentWatchedFileBuildItem(wasmFile.toAbsolutePath().toString()));
             }
         }
         return result;

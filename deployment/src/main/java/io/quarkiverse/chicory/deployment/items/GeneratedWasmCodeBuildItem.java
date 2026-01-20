@@ -45,7 +45,7 @@ public final class GeneratedWasmCodeBuildItem extends MultiBuildItem {
 
     @Override
     public String toString() {
-        return "GeneratedWasmClassesBuildItem{" +
+        return "GeneratedWasmCodeBuildItem{" +
                 "name='" + name + '\'' +
                 ", metaWasm=" + metaWasm +
                 ", javaSources=" + javaSources +

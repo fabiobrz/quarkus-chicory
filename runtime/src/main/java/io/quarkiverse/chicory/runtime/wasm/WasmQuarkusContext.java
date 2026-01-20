@@ -17,7 +17,19 @@ import io.quarkiverse.chicory.runtime.WasmQuarkusUtils;
 import io.quarkus.runtime.LaunchMode;
 
 /**
- * A representation of a Wasm module that is managed by Quarkus Chicory.
+ * The central API for accessing WebAssembly modules in Quarkus applications.
+ * <p>
+ * {@code WasmQuarkusContext} provides environment-aware access to WASM modules through CDI injection.
+ * It supplies a {@link #getMachineFactory()} configured for the current execution environment
+ * (dev, production, or native) and a {@link #getWasmModule()} parsed from the configured source.
+ * <p>
+ * Instances are created as CDI beans by the extension and can be injected using {@code @Named} qualifiers:
+ *
+ * <pre>
+ * &#64;Inject
+ * &#64;Named("my-module")
+ * WasmQuarkusContext wasmContext;
+ * </pre>
  */
 public class WasmQuarkusContext {
     private static final Logger LOG = Logger.getLogger(WasmQuarkusContext.class);
@@ -39,7 +51,7 @@ public class WasmQuarkusContext {
         // native image vs. JVM package type
         if (isDynamic) {
             // wasm payload is not configured, and is meant to be loaded dynamically, therefore only Interpreter
-            // execution mode can be used in native package type execution (everything is compiled AoT)
+            // execution mode can be used in native package type execution (everything is compiled at build time)
             if (isNativePackageType) {
                 LOG.warn("No payload is configured for Wasm module " + moduleKey +
                         ", and native image is being built. Execution mode will fall back to " + ExecutionMode.Interpreter);
@@ -63,10 +75,20 @@ public class WasmQuarkusContext {
         this.projectBaseDir = projectBaseDir;
     }
 
+    /**
+     * Returns the fully qualified name of this WASM module.
+     *
+     * @return The module name as configured via {@code quarkus.chicory.modules.<module-key>.name}
+     */
     public String getName() {
         return name;
     }
 
+    /**
+     * Returns the execution mode for this WASM module.
+     *
+     * @return The {@link ExecutionMode} determined by configuration and runtime environment
+     */
     public ExecutionMode getExecutionMode() {
         return executionMode;
     }
@@ -87,9 +109,13 @@ public class WasmQuarkusContext {
      * Returns a {@link WasmModule} instance obtained by parsing the Wasm module payload or .meta file,
      * based on the configuration and runtime environment. The caller is responsible for the {@link WasmModule} instance
      * lifecycle management, as it is not stored by the implementation.
+     * <p>
+     * For dynamically loaded modules (where neither {@code wasm-file} nor {@code wasm-resource} is configured),
+     * this method returns {@code null}.
      *
-     * @return A {@link WasmModule} instance obtained by parsing the Wasm module payload or .meta file.
-     * @throws IOException
+     * @return A {@link WasmModule} instance obtained by parsing the Wasm module payload or .meta file,
+     *         or {@code null} for dynamic modules
+     * @throws IOException if an error occurs while reading or parsing the WASM module
      */
     public WasmModule getWasmModule() throws IOException {
         // if neither wasm-file nor wasm-resource is configured it means the wasm payload will be provided dynamically

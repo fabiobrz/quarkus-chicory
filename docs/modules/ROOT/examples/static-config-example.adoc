@@ -1,9 +1,11 @@
 
-The following is a relevant fragment of an `application.properties` file, which is configuring a static
-Wasm module used by a Quarkus application:
+This example demonstrates how to configure and use a static WebAssembly module loaded at build time.
+
+==== Configuration
 
 [source,properties]
 ----
+quarkus.chicory.modules.operation-static.name=io.quarkiverse.chicory.it.OperationModule
 # The Wasm module payload is configurable either as a file
 ##quarkus.chicory.modules.operation.wasm-file=src/main/resources/wasm/operation.wasm
 # Or as a classpath resource, but file the file based configuration takes precedence
@@ -11,14 +13,12 @@ quarkus.chicory.modules.operation-static.wasm-resource=operation.wasm
 
 # Quarkus Chicory will watch all configured Wasm modules, so no need to add the following property:
 #quarkus.live-reload.watched-resources=wasm/operation.wasm
-quarkus.chicory.modules.operation-static.name=io.quarkiverse.chicory.it.OperationModule
 ----
 
-The `operation-static` identifier is the _key_ that Quarkus Chicory will use to identify such module.
-In this case a Wasm module, namely `operation.wasm` is built into the application artifact and made accessible to
-Quarkus Chicory as a classpath resource, via the _wasm-resource_ property.
-The _name_ property is similar to the one define d by the Chicory Maven Plugin, and is used by Quarkus Chicory
-to configure the code generation process.
+The `operation-static` identifier is the module name used for injection. The module is loaded as a classpath resource
+via `wasm-resource`, and the `name` property configures code generation.
+
+==== Java Implementation
 
 The above configuration will let your application inject a `WasmQuarkusContext` bean, like this:
 
@@ -30,26 +30,21 @@ public class ChicoryResource {
 
     @Inject
     @Named("operation-static")
-    Wasm wasmQuarkusContext;
+    WasmQuarkusContext wasmQuarkusContext;
 
-    Instance staticModuleInstance;
+    Instance instance;
 
     @PostConstruct
     public void init() {
-        // The Wasm module is obtained by the name it was registered with,
-        // here it was loaded statically at build time statically, based on the application configuration.
-        // Therefore, we can rely on the injected named bean to obtain the Chicory Instance in @PostConstruct
-        staticModuleInstance = wasmQuarkusContext.chicoryInstance();
+        instance = Instance.builder(wasmQuarkusContext.getWasmModule())
+            .withMachineFactory(wasmQuarkusContext.getMachineFactory())
+            .build();
     }
 
     @GET
     public Response hello() {
-        var result = staticModuleInstance.export("operation").apply(41, 1);
-        return Response.ok("Hello chicory (static): " + result[0]).build();
+        var result = instance.export("operation").apply(41, 1);
+        return Response.ok("Hello chicory: " + result[0]).build();
     }
 }
 ----
-
-As you can see, the injected `WasmQuarkusContext` bean can be used to retrieve a `com.dylibso.chicory.runtime.Instance` object,
-which can be used to interact with the Wasm module code at runtime, either by leveraging the generated Java bytecode,
-or dynamically, like in the above case.

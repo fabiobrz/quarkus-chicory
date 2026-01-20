@@ -36,7 +36,9 @@ public class WasmQuarkusUtils {
      * Writes a classpath Wasm resource to a temporary file and returns its path.
      *
      * @param resource The name of the Wasm resource
-     * @return The {@link Path} of the temporary file.
+     * @return The {@link Path} of the temporary file
+     * @throws IllegalArgumentException if the resource name is null or empty
+     * @throws IllegalStateException if the resource cannot be accessed or the temporary file cannot be created
      */
     public static Path getWasmPathFromResource(String resource) {
         if (StringUtil.isNullOrEmpty(resource)) {
@@ -57,10 +59,11 @@ public class WasmQuarkusUtils {
     }
 
     /**
-     * Returns the Meta Wasm resource input stream
+     * Returns the Meta Wasm resource input stream.
      *
-     * @param wasmModuleName The name of the Wasm module that generates the Meta Wasm resource
-     * @return The {@link InputStream} to read the Meta Wasm resource
+     * @param wasmModuleName The fully qualified name of the Wasm module that generates the Meta Wasm resource
+     * @return The {@link InputStream} to read the Meta Wasm resource, or {@code null} if not found
+     * @throws IllegalArgumentException if the module name is null or empty
      */
     public static InputStream getMetaWasmResourceStream(String wasmModuleName) {
         if (StringUtil.isNullOrEmpty(wasmModuleName)) {
