@@ -63,7 +63,7 @@ The extension generates Java bytecode from your WebAssembly modules at build tim
 
 - **Replaces Chicory Maven plugin** - no separate plugin needed
 - **Type-safe access** to exported functions through generated classes
-- **Optimized performance** through ahead-of-time compilation
+- **Optimized performance** through build-time compilation
 - **Better IDE integration** with code completion and type checking
 
 Generated code is automatically available in the build output.
